@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFEOS | Command Center v4</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body class="rpg-theme dark-mode">
+    <div class="hud-overlay"></div>
+    <div class="container">
+        <header class="header glass-panel">
+            <div class="logo">
+                <span class="prompt">></span> LIFEOS <span class="version">v4.9 [Vampire System Integrated]</span>
+            </div>
+            <div class="system-stats">
+                <div class="stat-item"><span class="icon">💻</span> Local LLM: <span id="cpu-load" class="text-accent">Ready</span></div>
+                <div class="stat-item"><span class="icon">⚙️</span> Pi Node: <span id="mem-load" class="text-success">Active</span></div>
+                <div class="stat-item"><span class="icon">⏱️</span> Uptime: <span id="uptime">--</span></div>
+            </div>
+        </header>
+
+        <section class="grid-layout">
+            <!-- Left Column: Character Profile & Stats -->
+            <div class="left-panel">
+                <div class="panel glass-panel profile-card">
+                    <div class="profile-header">
+                        <div class="avatar-ring">
+                            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=LifeOS" alt="Avatar" class="avatar">
+                        </div>
+                        <div class="profile-info">
+                            <h2 class="character-name">TW1GG</h2>
+                            <div class="level-badge">LVL <span id="char-level">12</span></div>
+                            <div class="class-title">System Architect & Shadow Walker</div>
+                        </div>
+                    </div>
+                    
+                    <div class="vampire-stats">
+                        <div class="v-stat">
+                            <div class="v-stat-label">HP (Health/Stamina)</div>
+                            <div class="progress-bar health-bar"><div id="bar-hp" class="fill" style="width: 85%;"></div></div>
+                            <div class="v-stat-value">850/1000</div>
+                        </div>
+                        <div class="v-stat">
+                            <div class="v-stat-label">MP (Focus/Energy)</div>
+                            <div class="progress-bar mana-bar"><div id="bar-mp" class="fill" style="width: 60%;"></div></div>
+                            <div class="v-stat-value">600/1000</div>
+                        </div>
+                        <div class="v-stat">
+                            <div class="v-stat-label">CELESTIAL (AI Compute)</div>
+                            <div class="progress-bar celestial-bar"><div id="bar-cp" class="fill" style="width: 95%;"></div></div>
+                            <div class="v-stat-value">950/1000</div>
+                        </div>
+                    </div>
+
+                    <div class="xp-container">
+                        <div class="xp-header">
+                            <span>Experience Progress</span>
+                            <span id="xp-text">12,450 / 15,000 XP</span>
+                        </div>
+                        <div class="progress-bar xp-bar"><div id="bar-xp" class="fill glow" style="width: 83%;"></div></div>
+                    </div>
+                </div>
+
+                <div class="panel glass-panel radar-panel">
+                    <h3 class="panel-title">Attribute Distribution</h3>
+                    <div class="attribute-grid">
+                        <div class="attr-row"><span class="attr-name">Physical</span><span class="attr-val">STR 14 | STA 18</span></div>
+                        <div class="attr-row"><span class="attr-name">Mental</span><span class="attr-val">FOC 22 | DIS 19</span></div>
+                        <div class="attr-row"><span class="attr-name">Career</span><span class="attr-val">REP 15 | SKL 25</span></div>
+                        <div class="attr-row"><span class="attr-name">Environment</span><span class="attr-val">CLN 10 | ORG 12</span></div>
+                        <div class="attr-row"><span class="attr-name">Financial</span><span class="attr-val">CSH 11 | SEC 14</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Column: Quest Log -->
+            <div class="center-panel">
+                <div class="panel glass-panel quest-board">
+                    <div class="quest-header">
+                        <h2 class="panel-title text-glow">Active Quest Log</h2>
+                        <div class="daily-streak">🔥 Streak: <span id="streak-count">4</span> Days</div>
+                    </div>
+                    
+                    <div class="quest-category">
+                        <h4 class="category-title text-blue">Core Dailies (Low XP)</h4>
+                        <ul class="quest-list" id="daily-quests">
+                            <!-- Injected via JS -->
+                        </ul>
+                    </div>
+
+                    <div class="quest-category">
+                        <h4 class="category-title text-purple">Weekly Action (Medium XP)</h4>
+                        <ul class="quest-list" id="weekly-quests">
+                            <!-- Injected via JS -->
+                        </ul>
+                    </div>
+
+                    <div class="quest-category">
+                        <h4 class="category-title text-gold">Epic Objectives (High XP)</h4>
+                        <ul class="quest-list" id="epic-quests">
+                            <!-- Injected via JS -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: System Intel & Projects -->
+            <div class="right-panel">
+                <!-- Priority AI Recommended Task -->
+                <div class="panel glass-panel highlight-panel">
+                    <h3 class="panel-title">Smart AI Priority</h3>
+                    <div class="dynamic-task">
+                        <div class="task-icon">🧠</div>
+                        <div class="task-details">
+                            <h4>"Recovery Mission"</h4>
+                            <p>Sleep was poor yesterday. Target: 20 min walk + hydration + early night.</p>
+                            <button class="action-btn" onclick="completeQuest('ai-recovery', 50)">Accept & Complete (+50 XP)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hardware Node Status — driven by real usage-bridge data -->
+                <div class="panel glass-panel">
+                    <h3 class="panel-title">Infrastructure Status</h3>
+                    <div class="tile-content">
+                        <div class="node-item offline">
+                            <span class="status-dot"></span> ASUS TUF — Local LLM (Ollama)
+                        </div>
+                        <div class="node-item offline">
+                            <span class="status-dot"></span> Google Cloud (Gemini)
+                        </div>
+                        <div class="node-item offline">
+                            <span class="status-dot"></span> Pi 4B+ (Automation)
+                        </div>
+                    </div>
+                    <div class="usage-summary" id="usage-summary">
+                        <!-- Populated by rpg_engine from usageLiveData -->
+                    </div>
+                </div>
+
+                <!-- Active Projects Array -->
+                <div class="panel glass-panel">
+                    <h3 class="panel-title">Connected Projects</h3>
+                    <div class="project-table-wrapper">
+                        <table class="project-table">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Comp %</th>
+                                    <th>Priority</th>
+                                </tr>
+                            </thead>
+                            <tbody id="project-tbody">
+                                <!-- Injected by data.js & dashboard.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- System Event Log — populated dynamically, no hardcoded entries -->
+                <div class="panel glass-panel event-log">
+                    <h3 class="panel-title">System Log</h3>
+                    <ul class="log-list" id="event-log">
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Data and Engine -->
+    <script src="assets/data.js"></script>
+    <script src="assets/usage-data.js"></script>
+    <script src="assets/health-data.js"></script>
+    <script src="assets/quests.js"></script>
+    <script src="assets/rpg_engine.js"></script>
+    <script src="assets/health_engine.js"></script>
+    <script src="assets/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "project": "LIFEOS Portal",
+  "codename": "COMMAND",
+  "completeness": 40,
+  "priority": 85,
+  "last_activity": "2026-04-18",
+  "status": "Building",
+  "next_step": "Install Ollama, bring Celestial Power online",
+  "location": "Documents/LIFEOS_PORTAL"
+}
