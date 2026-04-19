@@ -169,24 +169,74 @@
             <div class="right-panel">
                 <!-- Whole Life Monitoring (Cheese & Cortisol Tracker) -->
                 <div class="panel glass-panel highlight-panel">
-                    <h3 class="panel-title">Whole Life Monitoring</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="panel-title">Whole Life Monitoring</h3>
+                        <span id="telemetry-status" style="font-size: 0.6rem; color: #ff4757; text-transform: uppercase;">● Offline</span>
+                    </div>
                     <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 12px; line-height: 1.4;">
-                        Real-time correlation between physiological data and environmental factors.
+                        Real-time correlation: <span style="color: var(--accent-color);">Pulse: <span id="tel-pulse">--</span> bpm</span> | <span style="color: #70a1ff;">HRV: <span id="tel-hrv">--</span> ms</span>
                     </div>
                     <div class="dynamic-task" style="flex-direction: column; align-items: flex-start; gap: 12px;">
-                        <div style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--glass-border);">
-                            <div style="font-size: 0.75rem; color: var(--accent-color); font-weight: bold; text-transform: uppercase;">Cheese & Cortisol Tracker</div>
-                            <div style="font-size: 0.85rem; margin-top: 4px; display: flex; justify-content: space-between;"><span>Late Night Dairy Intake</span> <span style="color: #ff4757;">↑ Pulse Spike (+45bpm)</span></div>
+                        <div id="correl-dairy" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--glass-border); transition: all 0.3s;">
+                            <div style="font-size: 0.75rem; color: var(--accent-color); font-weight: bold; text-transform: uppercase;">Cheese & Cortisol</div>
+                            <div style="font-size: 0.85rem; margin-top: 4px; display: flex; justify-content: space-between;"><span>Late Night Dairy Intake</span> <span id="val-dairy" style="color: var(--text-dim);">Monitoring...</span></div>
                         </div>
-                        <div style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--glass-border);">
-                            <div style="font-size: 0.75rem; color: #70a1ff; font-weight: bold; text-transform: uppercase;">Family Visits vs Sleep Quality</div>
-                            <div style="font-size: 0.85rem; margin-top: 4px; display: flex; justify-content: space-between;"><span>Post-Narrative Loops</span> <span style="color: #eccc68;">HRV Drop (-15ms)</span></div>
+                        <div id="correl-family" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--glass-border); transition: all 0.3s;">
+                            <div style="font-size: 0.75rem; color: #70a1ff; font-weight: bold; text-transform: uppercase;">Family Visits vs Sleep</div>
+                            <div style="font-size: 0.85rem; margin-top: 4px; display: flex; justify-content: space-between;"><span>Narrative Loop Stress</span> <span id="val-family" style="color: var(--text-dim);">Monitoring...</span></div>
                         </div>
-                        <div style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--glass-border);">
+                        <div id="correl-sunlight" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--glass-border); transition: all 0.3s;">
                             <div style="font-size: 0.75rem; color: var(--success-color); font-weight: bold; text-transform: uppercase;">Productivity vs Sunlight</div>
-                            <div style="font-size: 0.85rem; margin-top: 4px; display: flex; justify-content: space-between;"><span>Good Mood Walk (45m)</span> <span style="color: var(--success-color);">+12 Git Commits</span></div>
+                            <div style="font-size: 0.85rem; margin-top: 4px; display: flex; justify-content: space-between;"><span>Good Mood Walk (Light)</span> <span id="val-sunlight" style="color: var(--text-dim);">Monitoring...</span></div>
                         </div>
                     </div>
+                    <script>
+                        // Simulate the Home Assistant / Pi MQTT pipeline
+                        document.addEventListener("DOMContentLoaded", () => {
+                            const evtSource = new EventSource("http://localhost:31415/api/telemetry");
+                            const statusEl = document.getElementById("telemetry-status");
+
+                            evtSource.onopen = () => {
+                                statusEl.innerHTML = "● Live (Local Simulation)";
+                                statusEl.style.color = "var(--success-color)";
+                            };
+
+                            evtSource.onerror = () => {
+                                statusEl.innerHTML = "● Disconnected";
+                                statusEl.style.color = "#ff4757";
+                            };
+
+                            evtSource.onmessage = (event) => {
+                                const data = JSON.parse(event.data);
+                                
+                                if (data.type === 'biometric') {
+                                    document.getElementById("tel-pulse").innerText = data.pulse;
+                                    document.getElementById("tel-hrv").innerText = data.hrv;
+                                }
+
+                                if (data.type === 'trigger') {
+                                    if (data.action === 'pulse_spike') {
+                                        const el = document.getElementById("correl-dairy");
+                                        el.style.borderColor = "#ff4757";
+                                        document.getElementById("val-dairy").innerHTML = `<span style="color:#ff4757;">↑ Pulse Spike (+45bpm)</span>`;
+                                        setTimeout(() => { el.style.borderColor = "var(--glass-border)"; document.getElementById("val-dairy").innerHTML = "Monitoring..."; }, 5000);
+                                    }
+                                    if (data.action === 'hrv_drop') {
+                                        const el = document.getElementById("correl-family");
+                                        el.style.borderColor = "#eccc68";
+                                        document.getElementById("val-family").innerHTML = `<span style="color:#eccc68;">HRV Drop (-15ms)</span>`;
+                                        setTimeout(() => { el.style.borderColor = "var(--glass-border)"; document.getElementById("val-family").innerHTML = "Monitoring..."; }, 5000);
+                                    }
+                                    if (data.action === 'productivity_boost') {
+                                        const el = document.getElementById("correl-sunlight");
+                                        el.style.borderColor = "var(--success-color)";
+                                        document.getElementById("val-sunlight").innerHTML = `<span style="color:var(--success-color);">+12 Git Commits</span>`;
+                                        setTimeout(() => { el.style.borderColor = "var(--glass-border)"; document.getElementById("val-sunlight").innerHTML = "Monitoring..."; }, 5000);
+                                    }
+                                }
+                            };
+                        });
+                    </script>
                 </div>
 
                 <!-- Sovereign Data Stack Architecture -->

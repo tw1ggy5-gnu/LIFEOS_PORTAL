@@ -65,6 +65,62 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // ─── MQTT MOCK / TELEMETRY STREAM (Server-Sent Events) ───
+    if (req.url === '/api/telemetry' && req.method === 'GET') {
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+        });
+        
+        res.write(`data: ${JSON.stringify({ type: 'system', message: 'Nervous System Connected' })}\n\n`);
+
+        let basePulse = 65;
+        let baseHrv = 45;
+
+        const sendMockData = () => {
+            // Randomly trigger specific events 15% of the time
+            const r = Math.random();
+            let ev;
+
+            if (r < 0.05) {
+                ev = { type: 'trigger', event: 'Dairy Intake (Late Night)', action: 'pulse_spike' };
+                basePulse = 110;
+            } else if (r < 0.10) {
+                ev = { type: 'trigger', event: 'Narrative Loop Detected', action: 'hrv_drop' };
+                baseHrv = 25;
+            } else if (r < 0.15) {
+                ev = { type: 'trigger', event: 'Sunlight Exposure (Walk)', action: 'productivity_boost' };
+            } else {
+                // Normal biometric drift
+                basePulse += (Math.random() * 4 - 2);
+                if (basePulse < 55) basePulse = 55;
+                if (basePulse > 120) basePulse -= 5;
+
+                baseHrv += (Math.random() * 4 - 2);
+                if (baseHrv < 20) baseHrv = 20;
+                if (baseHrv > 80) baseHrv -= 5;
+
+                ev = { 
+                    type: 'biometric', 
+                    pulse: Math.round(basePulse), 
+                    hrv: Math.round(baseHrv),
+                    light_lux: Math.floor(Math.random() * 500) + 200
+                };
+            }
+
+            res.write(`data: ${JSON.stringify(ev)}\n\n`);
+        };
+
+        // Broadcast every 2 seconds
+        const interval = setInterval(sendMockData, 2000);
+
+        req.on('close', () => {
+            clearInterval(interval);
+        });
+        return;
+    }
+
     res.writeHead(404);
     res.end();
 });
