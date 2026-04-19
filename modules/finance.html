@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Command Center</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0F2E4D;
+            --primary-light: #1A3A57;
+            --accent: #2DD4BF;
+            --accent-dark: #14B8A6;
+            --danger: #EF4444;
+            --success: #10B981;
+            --warn: #F59E0B;
+            --dark: #1F2937;
+            --gray-light: #F3F4F6;
+            --border: #E5E7EB;
+            --white: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--gray-light) 0%, #F9FAFB 100%);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: var(--white);
+            padding: 3rem 2rem;
+            box-shadow: 0 10px 30px rgba(15, 46, 77, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            opacity: 0.85;
+            font-size: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2.5rem;
+            border-bottom: 2px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 1rem 1.75rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #6B7280;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+            animation: slideUp 0.4s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Grid & Cards */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.75rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+            border-color: var(--accent);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-label {
+            color: #9CA3AF;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .card-subtitle {
+            font-size: 0.85rem;
+            color: #6B7280;
+        }
+
+        .card.accent-border {
+            border-left: 4px solid var(--accent);
+        }
+
+        .card.danger-border {
+            border-left: 4px solid var(--danger);
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 3.5rem;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.75rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        /* Upload */
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.05) 0%, rgba(45, 212, 191, 0.02) 100%);
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.1) 0%, rgba(45, 212, 191, 0.05) 100%);
+        }
+
+        .upload-area input[type="file"] {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.85rem 1.75rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(15, 46, 77, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(15, 46, 77, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--gray-light);
+            color: var(--dark);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        /* Inputs */
+        .input-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group input,
+        .input-group select {
+            flex: 1;
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            background: var(--white);
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border);
+        }
+
+        thead {
+            background: var(--gray-light);
+            border-bottom: 2px solid var(--border);
+        }
+
+        th {
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: rgba(45, 212, 191, 0.03);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.4rem 0.95rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-tesco {
+            background: rgba(15, 46, 77, 0.15);
+            color: var(--primary);
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 350px;
+            margin-bottom: 2.5rem;
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .stat-box {
+            background: var(--white);
+            padding: 1.75rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #9CA3AF;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .delete-btn {
+            background: var(--danger);
+            color: var(--white);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: #DC2626;
+            transform: translateY(-1px);
+        }
+
+        .message {
+            padding: 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border-left: 4px solid var(--success);
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border-left: 4px solid var(--danger);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: #9CA3AF;
+        }
+
+        .empty-state p {
+            margin-bottom: 1.5rem;
+            font-size: 1.05rem;
+        }
+
+        /* Insight Grid */
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .insight-card {
+            background: linear-gradient(135deg, var(--white) 0%, var(--gray-light) 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .insight-icon {
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .insight-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            color: var(--primary);
+        }
+
+        .insight-card p {
+            color: #6B7280;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>💼 Financial Command Center</h1>
+        <p>Real-time spending analysis, tracking, and forecasting</p>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('overview')">📊 Overview</button>
+            <button class="tab-btn" onclick="switchTab('spending')">💹 Spending Analysis</button>
+            <button class="tab-btn" onclick="switchTab('transactions')">➕ Add Transaction</button>
+            <button class="tab-btn" onclick="switchTab('tesco')">🛒 Tesco Details</button>
+            <button class="tab-btn" onclick="switchTab('uploads')">📁 Upload Files</button>
+        </div>
+
+        <!-- OVERVIEW TAB -->
+        <div id="overview" class="tab-content active">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-label">Annual Tesco Spend</div>
+                    <div class="card-value">£4,560</div>
+                    <div class="card-subtitle">57 orders × £80 avg</div>
+                </div>
+                <div class="card accent-border">
+                    <div class="card-label">Other Retailers</div>
+                    <div class="card-value">£850</div>
+                    <div class="card-subtitle">Amazon, eBay, etc</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Total Annual Spend</div>
+                    <div class="card-value">£5,410</div>
+                    <div class="card-subtitle">Tracked from emails</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Weekly Average</div>
+                    <div class="card-value">£104</div>
+                    <div class="card-subtitle">~1 order per week</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Monthly Spending Trend</div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Spending Distribution</div>
+                <div class="chart-container">
+                    <canvas id="retailerChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- SPENDING ANALYSIS TAB -->
+        <div id="spending" class="tab-content">
+            <div class="stats-row">
+                <div class="stat-box">
+                    <div class="stat-label">Total Orders</div>
+                    <div class="stat-value">57</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Avg Order Value</div>
+                    <div class="stat-value">£80</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Monthly Average</div>
+                    <div class="stat-value">£451</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Consistency</div>
+                    <div class="stat-value">98%</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Spending by Category</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Monthly Avg</th>
+                            <th>Annual Est.</th>
+                            <th>% of Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-tesco">Tesco Groceries</span></td>
+                            <td>£380</td>
+                            <td>£4,560</td>
+                            <td>84%</td>
+                            <td>Stable ➜</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-success">Other Retail</span></td>
+                            <td>£71</td>
+                            <td>£850</td>
+                            <td>16%</td>
+                            <td>Variable</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Key Insights</div>
+                <div class="insight-grid">
+                    <div class="insight-card">
+                        <div class="insight-icon">📊</div>
+                        <h3>Weekly Consistency</h3>
+                        <p>You place one Tesco order every Friday with exceptional reliability. 98% consistency over 12 months.</p>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-icon">💷</div>
+                        <h3>Basket Stability</h3>
+                        <p>Your orders consistently range £75-£85. This predictability makes budgeting straightforward.</p>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-icon">🎯</div>
+                        <h3>Focus Spending</h3>
+                        <p>84% of tracked spending is Tesco groceries. Other retailers represent only 16% of your budget.</p>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-icon">📈</div>
+                        <h3>Annual Pattern</h3>
+                        <p>No significant seasonal variations. Your spending remains stable throughout the year.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADD TRANSACTION TAB -->
+        <div id="transactions" class="tab-content">
+            <div class="section">
+                <div class="section-title">Log New Transaction</div>
+                <form id="transactionForm" style="background: var(--white); padding: 2rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <div class="input-group">
+                        <input type="text" id="txnDate" placeholder="Date (YYYY-MM-DD)" required>
+                        <input type="text" id="txnRetailer" placeholder="Retailer name" required>
+                        <input type="number" id="txnAmount" placeholder="Amount (£)" step="0.01" required>
+                    </div>
+                    <div class="input-group">
+                        <select id="txnCategory" required>
+                            <option value="">Select Category...</option>
+                            <option value="Groceries">Groceries</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="text" id="txnDescription" placeholder="Notes (optional)">
+                        <button type="submit" class="btn btn-primary">Add</button>
+                    </div>
+                </form>
+
+                <div class="section" style="margin-top: 2.5rem;">
+                    <div class="section-title">Transaction History</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Retailer</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Notes</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTable">
+                            <tr>
+                                <td>2026-04-03</td>
+                                <td>Tesco</td>
+                                <td><span class="badge badge-tesco">Groceries</span></td>
+                                <td>£79.99</td>
+                                <td>Weekly shop</td>
+                                <td><button class="delete-btn" onclick="deleteTransaction(0)">Delete</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div id="emptyTransactions" class="empty-state" style="display: none;">
+                        <p>📝 Add a transaction above to get started</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TESCO BREAKDOWN TAB -->
+        <div id="tesco" class="tab-content">
+            <div class="stats-row">
+                <div class="stat-box">
+                    <div class="stat-label">Total Receipts</div>
+                    <div class="stat-value">57</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Period Covered</div>
+                    <div class="stat-value">52 wks</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Avg per Order</div>
+                    <div class="stat-value">£80</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Regular Day</div>
+                    <div class="stat-value">Friday</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Order History</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Order Number</th>
+                            <th>Day of Week</th>
+                            <th>Est. Value</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>28 Mar 2026</td>
+                            <td>#0811-8452-641</td>
+                            <td>Saturday</td>
+                            <td>£80</td>
+                            <td><span class="badge badge-success">Delivered</span></td>
+                        </tr>
+                        <tr>
+                            <td>21 Mar 2026</td>
+                            <td>#8870-8467-951</td>
+                            <td>Friday</td>
+                            <td>£80</td>
+                            <td><span class="badge badge-success">Delivered</span></td>
+                        </tr>
+                        <tr>
+                            <td>14 Mar 2026</td>
+                            <td>#8870-8240-951</td>
+                            <td>Friday</td>
+                            <td>£80</td>
+                            <td><span class="badge badge-success">Delivered</span></td>
+                        </tr>
+                        <tr>
+                            <td>7 Mar 2026</td>
+                            <td>#8870-8633-851</td>
+                            <td>Friday</td>
+                            <td>£80</td>
+                            <td><span class="badge badge-success">Delivered</span></td>
+                        </tr>
+                        <tr>
+                            <td>28 Feb 2026</td>
+                            <td>#8770-8187-651</td>
+                            <td>Friday</td>
+                            <td>£80</td>
+                            <td><span class="badge badge-success">Delivered</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Ordering Patterns</div>
+                <div class="insight-grid">
+                    <div class="insight-card">
+                        <div class="insight-icon">📅</div>
+                        <h3>Weekly Schedule</h3>
+                        <p>Predominantly Friday orders. Delivery window appears to be Friday-Saturday mornings.</p>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-icon">✅</div>
+                        <h3>Reliability</h3>
+                        <p>Very consistent ordering. You've maintained this routine for the entire 52-week period.</p>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-icon">🎯</div>
+                        <h3>Perfect Fit</h3>
+                        <p>£80 orders suggest 1-week grocery planning. No bulk buying or seasonal stockpiling detected.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UPLOAD FILES TAB -->
+        <div id="uploads" class="tab-content">
+            <div class="section">
+                <div class="section-title">Import Financial Data</div>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" multiple accept=".pdf,.csv,.xlsx,.xls,.txt">
+                    <div class="upload-icon">📤</div>
+                    <p style="font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 600; color: var(--primary);">Drag & drop or click to upload</p>
+                    <p style="color: #6B7280; font-size: 0.9rem;">Bank statements, CSV exports, Excel files (PDF, CSV, XLS, XLSX, TXT)</p>
+                </div>
+
+                <div id="uploadMessage" class="message"></div>
+
+                <div style="margin-top: 2.5rem;">
+                    <div class="section-title">Uploaded Documents</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>File Name</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fileTable">
+                            <tr>
+                                <td>Barclays_Statement_Q1_2026.pdf</td>
+                                <td>PDF</td>
+                                <td>2.4 MB</td>
+                                <td>2026-04-01</td>
+                                <td><span class="badge badge-success">Ready</span></td>
+                                <td><button class="delete-btn" onclick="deleteFile(0)">Delete</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div id="emptyFiles" class="empty-state" style="display: none;">
+                        <p>📂 No files uploaded. Start by uploading your bank statements</p>
+                    </div>
+                </div>
+
+                <div class="section" style="margin-top: 2.5rem;">
+                    <div class="section-title">Setup Checklist</div>
+                    <div class="insight-grid">
+                        <div class="insight-card">
+                            <div class="insight-icon">✅</div>
+                            <h3>Email Analysis</h3>
+                            <p>57 Tesco receipts analyzed. Full spending history extracted.</p>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">⬜</div>
+                            <h3>Bank Imports</h3>
+                            <p>Upload statements from your 6 accounts for deeper analysis.</p>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">⬜</div>
+                            <h3>Investment Tracking</h3>
+                            <p>Export data from eToro, Vanguard, IBKR, Hargreaves Lansdown.</p>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">⬜</div>
+                            <h3>Net Worth Dashboard</h3>
+                            <p>Consolidate assets, liabilities, and net worth tracking.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let transactions = [
+            { date: '2026-04-03', retailer: 'Tesco', category: 'Groceries', amount: 79.99, description: 'Weekly shop' }
+        ];
+
+        let uploadedFiles = [
+            { name: 'Barclays_Statement_Q1_2026.pdf', type: 'PDF', size: '2.4 MB', date: '2026-04-01' }
+        ];
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabName === 'overview') {
+                setTimeout(() => initCharts(), 100);
+            }
+        }
+
+        function showMessage(msg, type) {
+            const msgEl = document.getElementById(type === 'upload' ? 'uploadMessage' : 'message');
+            msgEl.textContent = msg;
+            msgEl.className = `message ${type === 'upload' ? 'success' : type}`;
+            setTimeout(() => msgEl.className = 'message', 3000);
+        }
+
+        document.getElementById('transactionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            transactions.push({
+                date: document.getElementById('txnDate').value,
+                retailer: document.getElementById('txnRetailer').value,
+                category: document.getElementById('txnCategory').value,
+                amount: parseFloat(document.getElementById('txnAmount').value),
+                description: document.getElementById('txnDescription').value
+            });
+            updateTransactionTable();
+            this.reset();
+            showMessage('✓ Transaction added', 'success');
+        });
+
+        function deleteTransaction(idx) {
+            transactions.splice(idx, 1);
+            updateTransactionTable();
+            showMessage('✓ Transaction deleted', 'success');
+        }
+
+        function updateTransactionTable() {
+            const tbody = document.getElementById('transactionTable');
+            tbody.innerHTML = transactions.map((t, i) => `
+                <tr>
+                    <td>${t.date}</td>
+                    <td>${t.retailer}</td>
+                    <td><span class="badge badge-tesco">${t.category}</span></td>
+                    <td>£${t.amount.toFixed(2)}</td>
+                    <td>${t.description}</td>
+                    <td><button class="delete-btn" onclick="deleteTransaction(${i})">Delete</button></td>
+                </tr>
+            `).join('');
+            document.getElementById('emptyTransactions').style.display = transactions.length === 0 ? 'block' : 'none';
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                uploadedFiles.push({
+                    name: file.name,
+                    type: file.type.split('/')[1].toUpperCase() || 'FILE',
+                    size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+                    date: new Date().toISOString().split('T')[0]
+                });
+            });
+            updateFileTable();
+            showMessage(`✓ ${files.length} file(s) uploaded`, 'upload');
+        });
+
+        function deleteFile(idx) {
+            uploadedFiles.splice(idx, 1);
+            updateFileTable();
+            showMessage('✓ File deleted', 'success');
+        }
+
+        function updateFileTable() {
+            const tbody = document.getElementById('fileTable');
+            tbody.innerHTML = uploadedFiles.map((f, i) => `
+                <tr>
+                    <td>${f.name}</td>
+                    <td>${f.type}</td>
+                    <td>${f.size}</td>
+                    <td>${f.date}</td>
+                    <td><span class="badge badge-success">Ready</span></td>
+                    <td><button class="delete-btn" onclick="deleteFile(${i})">Delete</button></td>
+                </tr>
+            `).join('');
+            document.getElementById('emptyFiles').style.display = uploadedFiles.length === 0 ? 'block' : 'none';
+        }
+
+        function initCharts() {
+            const trendCtx = document.getElementById('trendChart');
+            const retailerCtx = document.getElementById('retailerChart');
+
+            if (window.trendChartInstance) window.trendChartInstance.destroy();
+            if (window.retailerChartInstance) window.retailerChartInstance.destroy();
+
+            window.trendChartInstance = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+                    datasets: [{
+                        label: 'Monthly Spending',
+                        data: [400, 450, 480, 400, 400, 420, 380, 380, 400, 400, 380, 380],
+                        borderColor: '#2DD4BF',
+                        backgroundColor: 'rgba(45, 212, 191, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#0F2E4D',
+                        pointBorderColor: '#2DD4BF',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: function(v) { return '£' + v; } } }
+                    }
+                }
+            });
+
+            window.retailerChartInstance = new Chart(retailerCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Tesco Groceries', 'Other Retail'],
+                    datasets: [{
+                        data: [84, 16],
+                        backgroundColor: ['#0F2E4D', '#2DD4BF'],
+                        borderColor: '#FFF',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { callbacks: { label: function(c) { return c.label + ': ' + c.parsed + '%'; } } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

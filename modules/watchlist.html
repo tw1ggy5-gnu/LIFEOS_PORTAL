@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watchlist — Chris</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f7f7f5; --bg3: #f0ede8;
+  --text: #1a1a18; --text2: #5a5a54; --text3: #9a9a90;
+  --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+  --accent: #c0392b; --accentbg: #fdf0ee; --accenttext: #8b2217;
+  --blue: #1a6eb5; --bluebg: #edf4fc; --bluetext: #0f4a80;
+  --green: #2d7d4a; --greenbg: #edf7f1; --greentext: #1a5530;
+  --gold: #c07a10; --goldbg: #fdf5e6; --goldtext: #8a5200;
+  --radius: 10px; --radius-sm: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+    --text: #f0ede8; --text2: #a8a89e; --text3: #68685e;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+    --accent: #e05a4a; --accentbg: #2d1915; --accenttext: #f0a090;
+    --blue: #4a9fd4; --bluebg: #0e1f30; --bluetext: #80c4ee;
+    --green: #4aad6a; --greenbg: #0e2318; --greentext: #80d4a0;
+    --gold: #e09a30; --goldbg: #2a1e08; --goldtext: #f0c070;
+  }
+}
+body { font-family: 'Georgia', 'Times New Roman', serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
+button, input, select { font-family: 'Georgia', serif; }
+button { cursor: pointer; transition: opacity 0.1s; }
+button:hover { opacity: 0.8; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useCallback } = React;
+
+const DATA = {
+  tv: [
+    {id:'t1',title:'Elementary',cat:'crime',rating:5,notes:'Holmes completionist — ~20 full runs',tags:['procedural','detective','US','Holmes-adjacent']},
+    {id:'t2',title:'Sherlock',cat:'crime',rating:5,notes:'',tags:['detective','UK','Holmes-adjacent']},
+    {id:'t3',title:'Houdini and Doyle',cat:'crime',rating:4,notes:'',tags:['detective','historical','UK','Holmes-adjacent']},
+    {id:'t4',title:'Slow Horses',cat:'crime',rating:5,notes:'Watched in full',tags:['spy','UK','drama']},
+    {id:'t5',title:"Dirk Gently's Holistic Detective Agency",cat:'crime',rating:4,notes:'BBC Series 1 great; later series incoherent. Have read Douglas Adams novels.',tags:['detective','comedy','UK','Holmes-adjacent']},
+    {id:'t6',title:'Death in Paradise',cat:'crime',rating:4,notes:'Active season, airs Fridays BBC One',tags:['procedural','blue-sky','UK'],watching:true},
+    {id:'t7',title:'Brooklyn Nine-Nine',cat:'comedy',rating:5,notes:'Full re-watch completed Feb 2026',tags:['procedural','comedy','ensemble','US']},
+    {id:'t8',title:'Lie to Me',cat:'crime',rating:4,notes:'Re-watching Mar 2026',tags:['procedural','US'],watching:true},
+    {id:'t9',title:'Fawlty Towers',cat:'comedy',rating:5,notes:'Attended live play',tags:['British-comedy','classic','UK']},
+    {id:'t10',title:'The IT Crowd',cat:'comedy',rating:5,notes:'',tags:['British-comedy','UK']},
+    {id:'t11',title:'Black Books',cat:'comedy',rating:5,notes:'',tags:['British-comedy','UK']},
+    {id:'t12',title:'Detectorists',cat:'comedy',rating:5,notes:'',tags:['British-comedy','warm','UK','character-driven']},
+    {id:'t13',title:'Friday Night Dinner',cat:'comedy',rating:4,notes:'',tags:['British-comedy','UK']},
+    {id:'t14',title:'Man Down',cat:'comedy',rating:4,notes:'',tags:['British-comedy','UK']},
+    {id:'t15',title:'Peaky Blinders',cat:'crime',rating:4,notes:'',tags:['crime','UK']},
+    {id:'t16',title:'Killing Eve',cat:'crime',rating:4,notes:'',tags:['spy','UK']},
+    {id:'t17',title:'Grace and Frankie',cat:'comedy',rating:4,notes:'Watching Season 1, Mar 2026',tags:['warm','character-driven','ensemble','older-leads','US'],watching:true},
+    {id:'t18',title:'The Kominsky Method',cat:'comedy',rating:4,notes:'',tags:['warm','character-driven','older-leads','US']},
+    {id:'t19',title:'The Good Place',cat:'comedy',rating:5,notes:'',tags:['comedy','ensemble','US']},
+    {id:'t20',title:'Parks and Recreation',cat:'comedy',rating:5,notes:'',tags:['comedy','ensemble','US']},
+    {id:'t21',title:'Scrubs',cat:'comedy',rating:4,notes:'2026 revival watching',tags:['comedy','medical','US'],watching:true},
+    {id:'t22',title:'House M.D.',cat:'crime',rating:5,notes:'',tags:['procedural','medical','US','Holmes-adjacent']},
+    {id:'t23',title:'The Mentalist',cat:'crime',rating:5,notes:'',tags:['procedural','detective','US','Holmes-adjacent']},
+    {id:'t24',title:'Psych',cat:'crime',rating:4,notes:'',tags:['procedural','detective','comedy','US','Holmes-adjacent']},
+    {id:'t25',title:'Burn Notice',cat:'crime',rating:4,notes:'',tags:['procedural','spy','US']},
+    {id:'t26',title:'White Collar',cat:'crime',rating:4,notes:'',tags:['procedural','detective','US']},
+    {id:'t27',title:'Warehouse 13',cat:'scifi',rating:4,notes:'',tags:['procedural','sci-fi','US']},
+    {id:'t28',title:'MINDHUNTER',cat:'crime',rating:5,notes:'',tags:['crime','procedural','US']},
+    {id:'t29',title:'Resident Alien',cat:'scifi',rating:4,notes:'',tags:['comedy','sci-fi','US']},
+    {id:'t30',title:'Upload',cat:'scifi',rating:4,notes:'',tags:['comedy','sci-fi','US']},
+    {id:'t31',title:'Kath and Kim',cat:'comedy',rating:3,notes:'',tags:['comedy','Australian']},
+    {id:'t32',title:'Upper Middle Bogan',cat:'comedy',rating:4,notes:'',tags:['comedy','Australian']},
+    {id:'t33',title:'Fisk',cat:'comedy',rating:4,notes:'',tags:['comedy','Australian']},
+    {id:'t34',title:'Arrested Development',cat:'comedy',rating:4,notes:'',tags:['comedy','US']},
+    {id:'t35',title:'Breaking Bad',cat:'crime',rating:5,notes:'',tags:['crime','drama','US']},
+    {id:'t36',title:'Game of Thrones',cat:'drama',rating:4,notes:'',tags:['fantasy','drama']},
+    {id:'t37',title:'Stranger Things',cat:'drama',rating:4,notes:'',tags:['sci-fi','drama','US']},
+    {id:'t38',title:'Squid Game',cat:'drama',rating:4,notes:'',tags:['thriller','Korean']},
+    {id:'t39',title:'Wednesday',cat:'comedy',rating:4,notes:'',tags:['comedy','fantasy','US']},
+    {id:'t40',title:"A Good Girl's Guide to Murder",cat:'crime',rating:4,notes:'',tags:['detective','UK']},
+    {id:'t41',title:'A Man on the Inside',cat:'comedy',rating:4,notes:'',tags:['warm','character-driven','US','older-leads']},
+    {id:'t42',title:'Cunk on Britain',cat:'doc',rating:5,notes:'',tags:['comedy','documentary','UK']},
+    {id:'t43',title:'Cunk On Earth',cat:'doc',rating:5,notes:'',tags:['comedy','documentary','UK']},
+    {id:'t44',title:'Dead to Me',cat:'comedy',rating:4,notes:'',tags:['dark-comedy','US']},
+    {id:'t45',title:'The Lincoln Lawyer',cat:'crime',rating:4,notes:'Season 1 started Mar 2026',tags:['legal','procedural','US'],watching:true},
+    {id:'t46',title:'Lupin',cat:'crime',rating:4,notes:'',tags:['detective','French']},
+    {id:'t47',title:'That Mitchell and Webb Look',cat:'comedy',rating:4,notes:'',tags:['British-comedy','sketch','UK']},
+    {id:'t48',title:'Norsemen',cat:'comedy',rating:4,notes:'',tags:['comedy','Norwegian']},
+    {id:'t49',title:'Red Dwarf',cat:'comedy',rating:5,notes:'',tags:['British-comedy','sci-fi','UK']},
+    {id:'t50',title:'Blackadder',cat:'comedy',rating:5,notes:'',tags:['British-comedy','historical','UK']},
+    {id:'t51',title:'Mr. Bean',cat:'comedy',rating:4,notes:'',tags:['British-comedy','UK']},
+    {id:'t52',title:"A Bit of Fry and Laurie",cat:'comedy',rating:5,notes:'',tags:['British-comedy','sketch','UK']},
+    {id:'t53',title:'Feel Good',cat:'comedy',rating:4,notes:'',tags:['comedy','UK']},
+    {id:'t54',title:'Fresh Meat',cat:'comedy',rating:4,notes:'',tags:['British-comedy','UK']},
+    {id:'t55',title:'Bad Education',cat:'comedy',rating:4,notes:'',tags:['British-comedy','UK']},
+    {id:'t56',title:'Doc Martin',cat:'crime',rating:4,notes:'',tags:['procedural','blue-sky','UK']},
+    {id:'t57',title:'Lucifer',cat:'crime',rating:4,notes:'',tags:['procedural','detective','fantasy','US']},
+    {id:'t58',title:'iZombie',cat:'crime',rating:4,notes:'',tags:['procedural','detective','comedy','US','Holmes-adjacent']},
+    {id:'t59',title:'The Hitch Hikers Guide to the Galaxy',cat:'scifi',rating:5,notes:'Douglas Adams adaptation',tags:['sci-fi','comedy','UK','classic']},
+    {id:'t60',title:'ONE PIECE',cat:'drama',rating:4,notes:'Season 2 on radar',tags:['adventure']},
+    {id:'t61',title:'Suits',cat:'crime',rating:4,notes:'',tags:['legal','US']},
+    {id:'t62',title:"It's Always Sunny in Philadelphia",cat:'comedy',rating:3,notes:'',tags:['comedy','US']},
+    {id:'t63',title:'Clarkson\'s Farm',cat:'doc',rating:4,notes:'Ongoing',tags:['factual','UK'],watching:true},
+    {id:'t64',title:'Beyond Paradise',cat:'crime',rating:null,notes:'Started ep 1, Mar 2026',tags:['procedural','blue-sky','UK'],watching:true},
+    {id:'t65',title:'Young Sherlock',cat:'crime',rating:null,notes:'In progress ep 6+, Prime Video',tags:['detective','UK','Holmes-adjacent'],watching:true},
+    {id:'t66',title:'Brockmire',cat:'comedy',rating:4,notes:'',tags:['comedy','US']},
+    {id:'t67',title:'The Good Cop',cat:'crime',rating:4,notes:'',tags:['procedural','detective','US']},
+    {id:'t68',title:'Running Point',cat:'comedy',rating:3,notes:'',tags:['comedy','US']},
+    {id:'t69',title:'FUBAR',cat:'crime',rating:3,notes:'',tags:['action','US']},
+    {id:'t70',title:'Unbreakable Kimmy Schmidt',cat:'comedy',rating:4,notes:'',tags:['comedy','US']},
+    {id:'t71',title:'Killing Eve',cat:'crime',rating:4,notes:'',tags:['spy','UK']},
+    {id:'t72',title:'A Discovery of Witches',cat:'drama',rating:3,notes:'',tags:['fantasy','UK']},
+    {id:'t73',title:'Shadow and Bone',cat:'drama',rating:3,notes:'',tags:['fantasy']},
+  ],
+  films: [
+    {id:'f1',title:'Glass Onion',cat:'mystery',rating:5,notes:'',tags:['mystery','detective']},
+    {id:'f2',title:'Hot Fuzz',cat:'comedy',rating:5,notes:'',tags:['comedy','crime','UK']},
+    {id:'f3',title:'Shaun of the Dead',cat:'comedy',rating:5,notes:'',tags:['comedy','horror','UK']},
+    {id:'f4',title:'The Imitation Game',cat:'drama',rating:5,notes:'',tags:['historical','drama','UK']},
+    {id:'f5',title:'Enola Holmes / Enola Holmes 2',cat:'mystery',rating:5,notes:'Holmes completionist',tags:['detective','UK','Holmes-adjacent']},
+    {id:'f6',title:'The Thursday Murder Club',cat:'mystery',rating:4,notes:'',tags:['mystery','detective','UK']},
+    {id:'f7',title:'Wicked Little Letters',cat:'comedy',rating:4,notes:'',tags:['comedy','historical','UK']},
+    {id:'f8',title:'The Wonderful Story of Henry Sugar',cat:'drama',rating:5,notes:'Wes Anderson',tags:['UK','Wes-Anderson']},
+    {id:'f9',title:'Pulp Fiction',cat:'crime',rating:5,notes:'',tags:['crime','drama']},
+    {id:'f10',title:'Snatch',cat:'crime',rating:5,notes:'',tags:['crime','comedy','UK']},
+    {id:'f11',title:'Layer Cake',cat:'crime',rating:4,notes:'',tags:['crime','UK']},
+    {id:'f12',title:'RocknRolla',cat:'crime',rating:4,notes:'',tags:['crime','comedy','UK']},
+    {id:'f13',title:'The Wolf of Wall Street',cat:'drama',rating:4,notes:'',tags:['drama','US']},
+    {id:'f14',title:'About Time',cat:'comedy',rating:4,notes:'',tags:['romance','comedy','UK']},
+    {id:'f15',title:'Notting Hill',cat:'comedy',rating:4,notes:'',tags:['romance','comedy','UK']},
+    {id:'f16',title:'Love Actually',cat:'comedy',rating:4,notes:'',tags:['romance','comedy','UK']},
+    {id:'f17',title:'The Big Short',cat:'drama',rating:5,notes:'',tags:['drama','finance']},
+    {id:'f18',title:'Moneyball',cat:'drama',rating:4,notes:'',tags:['drama','sports']},
+    {id:'f19',title:'Adolescence',cat:'drama',rating:5,notes:'',tags:['drama','UK']},
+    {id:'f20',title:'The Gentlemen',cat:'crime',rating:4,notes:'',tags:['crime','comedy','UK']},
+    {id:'f21',title:'John Wick',cat:'action',rating:4,notes:'',tags:['action','US']},
+    {id:'f22',title:'Nobody',cat:'action',rating:4,notes:'',tags:['action','US']},
+    {id:'f23',title:'Murder Mystery / Murder Mystery 2',cat:'comedy',rating:3,notes:'',tags:['mystery','comedy']},
+    {id:'f24',title:'The Irregulars',cat:'mystery',rating:3,notes:'Holmes adjacent Netflix',tags:['detective','UK','Holmes-adjacent']},
+    {id:'f25',title:'Confess Fletch',cat:'mystery',rating:4,notes:'',tags:['mystery','comedy','detective']},
+    {id:'f26',title:'The Good Liar',cat:'mystery',rating:4,notes:'',tags:['thriller','UK']},
+    {id:'f27',title:'Murderville',cat:'comedy',rating:4,notes:'',tags:['comedy','detective','US']},
+    {id:'f28',title:'Bank of Dave',cat:'drama',rating:4,notes:'',tags:['UK','true-story']},
+    {id:'f29',title:'Waking Ned',cat:'comedy',rating:4,notes:'',tags:['UK','comedy']},
+    {id:'f30',title:'Boyhood',cat:'drama',rating:4,notes:'',tags:['drama','US']},
+    {id:'f31',title:'Eternal Sunshine of the Spotless Mind',cat:'drama',rating:4,notes:'',tags:['drama','romance']},
+    {id:'f32',title:'Django Unchained',cat:'crime',rating:4,notes:'',tags:['crime','Western','US']},
+    {id:'f33',title:'Inglourious Basterds',cat:'crime',rating:5,notes:'',tags:['war','drama','US']},
+    {id:'f34',title:'Reservoir Dogs',cat:'crime',rating:5,notes:'',tags:['crime','drama','US']},
+  ],
+  standup: [
+    {id:'s1',title:'James Acaster',cat:'observational',rating:5,notes:'',tags:['British','observational']},
+    {id:'s2',title:'Greg Davies',cat:'storytelling',rating:5,notes:'Also seen live — sold out Hall for Cornwall',tags:['British','storytelling']},
+    {id:'s3',title:'Demetri Martin',cat:'observational',rating:5,notes:'',tags:['US','observational','visual']},
+    {id:'s4',title:'Bill Burr',cat:'observational',rating:4,notes:'',tags:['US']},
+    {id:'s5',title:'John Mulaney',cat:'storytelling',rating:5,notes:'',tags:['US','storytelling','observational']},
+    {id:'s6',title:'Bo Burnham',cat:'musical',rating:5,notes:'',tags:['US','musical']},
+    {id:'s7',title:'Fern Brady',cat:'observational',rating:4,notes:'',tags:['British']},
+    {id:'s8',title:'Katherine Ryan',cat:'observational',rating:4,notes:'',tags:['British']},
+    {id:'s9',title:'Rhys Nicholson',cat:'observational',rating:4,notes:'',tags:['Australian']},
+    {id:'s10',title:'Jimmy Carr',cat:'one-liners',rating:3,notes:'',tags:['British']},
+    {id:'s11',title:'Michael McIntyre',cat:'observational',rating:3,notes:'',tags:['British']},
+    {id:'s12',title:'Ricky Gervais',cat:'observational',rating:4,notes:'',tags:['British']},
+    {id:'s13',title:'Russell Howard',cat:'observational',rating:4,notes:'',tags:['British']},
+    {id:'s14',title:'Jack Whitehall',cat:'storytelling',rating:3,notes:'',tags:['British']},
+    {id:'s15',title:'Chris Rock',cat:'observational',rating:4,notes:'',tags:['US']},
+    {id:'s16',title:'Kevin Hart',cat:'storytelling',rating:3,notes:'',tags:['US']},
+    {id:'s17',title:'Stephen Fry Live',cat:'storytelling',rating:5,notes:'',tags:['British']},
+    {id:'s18',title:'Monty Python Live',cat:'classic',rating:5,notes:'',tags:['British','classic']},
+    {id:'s19',title:'Bill Hicks',cat:'classic',rating:5,notes:'',tags:['US','classic']},
+    {id:'s20',title:'Adam Sandler 100% Fresh',cat:'musical',rating:3,notes:'',tags:['US']},
+  ],
+  queue: [
+    {id:'q1',title:'Quartet',cat:'queued',rating:null,notes:'',tags:['UK']},
+    {id:'q2',title:'Peaky Blinders: The Immortal Man',cat:'queued',rating:null,notes:'Upcoming',tags:['crime','UK']},
+    {id:'q3',title:'One Piece Season 2',cat:'queued',rating:null,notes:'On radar',tags:['adventure']},
+    {id:'q4',title:'Murdoch Mysteries',cat:'queued',rating:null,notes:'Strong match — BritBox',tags:['procedural','detective','Holmes-adjacent']},
+    {id:'q5',title:'Miss Scarlet and the Duke',cat:'queued',rating:null,notes:'Strong match — BritBox',tags:['procedural','detective','Holmes-adjacent']},
+  ]
+};
+
+const SECTION_LABELS = {tv:'TV Series',films:'Films',standup:'Stand-Up',queue:'To Watch'};
+const SECTION_COLORS = {tv:'--blue',films:'--accent',standup:'--green',queue:'--gold'};
+
+const StarRating = ({value, onChange, size=15}) => {
+  const [hover, setHover] = useState(null);
+  return (
+    <span style={{display:'inline-flex',gap:1}}>
+      {[1,2,3,4,5].map(n=>(
+        <span key={n}
+          onMouseEnter={()=>onChange&&setHover(n)}
+          onMouseLeave={()=>onChange&&setHover(null)}
+          onClick={(e)=>{e.stopPropagation();onChange&&onChange(value===n?null:n);}}
+          style={{fontSize:size,cursor:onChange?'pointer':'default',color:(hover??value)>=n?'#d4a017':'var(--border2)',userSelect:'none',lineHeight:1}}>★</span>
+      ))}
+    </span>
+  );
+};
+
+const Tag = ({label, active, onClick}) => (
+  <span onClick={onClick} style={{
+    display:'inline-block',padding:'2px 7px',borderRadius:20,fontSize:11,
+    background:active?'var(--bluebg)':'var(--bg2)',
+    color:active?'var(--bluetext)':'var(--text3)',
+    border:`0.5px solid ${active?'var(--blue)':'var(--border)'}`,
+    cursor:onClick?'pointer':'default',userSelect:'none',whiteSpace:'nowrap'
+  }}>{label}</span>
+);
+
+function ItemRow({item, onUpdate, onRemove, onAI, enriched, onEnrich, enrichLoading}) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editNotes, setEditNotes] = useState(item.notes||'');
+  const [editTags, setEditTags] = useState((item.tags||[]).join(', '));
+  const meta = enriched?.[item.id];
+  const col = SECTION_COLORS[item.section];
+  return (
+    <div style={{
+      background:'var(--bg)',
+      border:`0.5px solid ${item.disliked?'#e05a4a':'var(--border)'}`,
+      borderRadius:10,
+      marginBottom:6,
+      overflow:'hidden',
+      opacity:item.disliked?0.65:1,
+      transition:'opacity 0.2s'
+    }}>
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{display:'flex',alignItems:'flex-start',gap:10,padding:'10px 12px',cursor:'pointer'}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:3}}>
+            <span style={{fontWeight:600,fontSize:14,color:item.disliked?'var(--text3)':'var(--text)'}}>{item.title}</span>
+            <span style={{fontSize:10,padding:'1px 5px',borderRadius:20,background:`var(${col}bg)`,color:`var(${col}text)`,border:`0.5px solid var(${col})`}}>{SECTION_LABELS[item.section]}</span>
+            {item.watching&&<span style={{fontSize:10,padding:'1px 5px',borderRadius:20,background:'var(--greenbg)',color:'var(--greentext)',border:'0.5px solid var(--green)'}}>watching</span>}
+            {item.disliked&&<span style={{fontSize:10,padding:'1px 5px',borderRadius:20,background:'#2d1915',color:'#f0a090',border:'0.5px solid #e05a4a'}}>disliked</span>}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+            <StarRating value={item.rating} onChange={v=>onUpdate({rating:v})} size={12}/>
+            {(item.tags||[]).slice(0,4).map(t=><Tag key={t} label={t}/>)}
+          </div>
+        </div>
+        <span style={{color:'var(--text3)',fontSize:11,marginTop:2,flexShrink:0}}>{open?'▲':'▼'}</span>
+      </div>
+      {open&&(
+        <div style={{padding:'10px 12px',borderTop:'0.5px solid var(--border)',background:'var(--bg2)'}}>
+          {editing ? (
+            <div style={{marginBottom:10}}>
+              <div style={{marginBottom:6}}>
+                <label style={{fontSize:12,color:'var(--text2)',display:'block',marginBottom:3}}>Notes</label>
+                <textarea value={editNotes} onChange={e=>setEditNotes(e.target.value)}
+                  style={{width:'100%',fontSize:13,padding:'6px 8px',background:'var(--bg)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)',resize:'vertical',minHeight:60}}/>
+              </div>
+              <div style={{marginBottom:8}}>
+                <label style={{fontSize:12,color:'var(--text2)',display:'block',marginBottom:3}}>Tags (comma-separated)</label>
+                <input value={editTags} onChange={e=>setEditTags(e.target.value)}
+                  style={{width:'100%',fontSize:13,padding:'6px 8px',background:'var(--bg)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)'}}/>
+              </div>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={()=>{onUpdate({notes:editNotes,tags:editTags.split(',').map(t=>t.trim()).filter(Boolean)});setEditing(false);}}
+                  style={{padding:'5px 12px',fontSize:12,background:'var(--bluebg)',border:'0.5px solid var(--blue)',borderRadius:6,color:'var(--bluetext)'}}>Save</button>
+                <button onClick={()=>setEditing(false)}
+                  style={{padding:'5px 12px',fontSize:12,background:'none',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {item.notes&&<p style={{fontSize:13,color:'var(--text2)',marginBottom:8}}>{item.notes}</p>}
+              <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
+                {(item.tags||[]).map(t=><Tag key={t} label={t}/>)}
+              </div>
+            </>
+          )}
+          {meta&&!meta.error&&(
+            <div style={{background:'var(--bg)',border:'0.5px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:10,fontSize:13}}>
+              {meta.summary&&<p style={{color:'var(--text2)',marginBottom:6,fontStyle:'italic'}}>{meta.summary}</p>}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'3px 12px',marginBottom:6}}>
+                {meta.director&&<span style={{color:'var(--text3)'}}><b>Director:</b> {meta.director}</span>}
+                {meta.creator&&<span style={{color:'var(--text3)'}}><b>Creator:</b> {meta.creator}</span>}
+                {meta.years&&<span style={{color:'var(--text3)'}}><b>Years:</b> {meta.years}</span>}
+                {meta.imdb_score&&<span style={{color:'var(--text3)'}}><b>IMDB:</b> {meta.imdb_score}</span>}
+                {meta.cast?.length>0&&<span style={{color:'var(--text3)',gridColumn:'1/-1'}}><b>Cast:</b> {meta.cast.join(', ')}</span>}
+              </div>
+              {meta.themes?.length>0&&<div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:6}}>{meta.themes.map(t=><Tag key={t} label={t}/>)}</div>}
+              {meta.whyWatch&&<p style={{color:'var(--bluetext)',fontSize:12,fontStyle:'italic',background:'var(--bluebg)',padding:'6px 8px',borderRadius:6}}>"{meta.whyWatch}"</p>}
+              {meta.similar?.length>0&&<p style={{fontSize:12,color:'var(--text3)',marginTop:6}}><b>Similar:</b> {meta.similar.join(', ')}</p>}
+            </div>
+          )}
+          {meta?.error&&<p style={{fontSize:12,color:'var(--accent)',marginBottom:8}}>{meta.error}</p>}
+          <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+            <StarRating value={item.rating} onChange={v=>onUpdate({rating:v})} size={16}/>
+            {!meta&&<button onClick={()=>onEnrich(item)} disabled={enrichLoading===item.id}
+              style={{padding:'4px 10px',fontSize:12,background:'none',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>
+              {enrichLoading===item.id?<span className="spin">◌</span>:null} {enrichLoading===item.id?'Loading…':'Fetch metadata'}
+            </button>}
+            <button onClick={()=>onAI(`Find me similar titles to "${item.title}". Consider director, creator, cast, tone, and themes. Note which streaming services in the UK each is available on.`,'similar',item)}
+              style={{padding:'4px 10px',fontSize:12,background:'none',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>Similar</button>
+            <button onClick={()=>onAI(`Tell me about the director or creator of "${item.title}" and suggest other works by them I'd likely enjoy.`,'director',item)}
+              style={{padding:'4px 10px',fontSize:12,background:'none',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>Same creator</button>
+            <button onClick={()=>setEditing(e=>!e)}
+              style={{padding:'4px 10px',fontSize:12,background:'none',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>Edit</button>
+            <button onClick={()=>onUpdate({disliked:!item.disliked})}
+              style={{padding:'4px 10px',fontSize:12,background:item.disliked?'#2d1915':'none',border:`0.5px solid ${item.disliked?'#e05a4a':'var(--border)'}`,borderRadius:6,color:item.disliked?'#f0a090':'var(--text2)'}}>
+              {item.disliked?'✕ Disliked':'✕ Dislike'}
+            </button>
+            <button onClick={onRemove}
+              style={{marginLeft:'auto',padding:'4px 10px',fontSize:12,background:'none',border:'0.5px solid var(--accent)',borderRadius:6,color:'var(--accent)'}}>Remove</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AIPanel({loading, result, mode, target, onClose, onNew}) {
+  return (
+    <div style={{background:'var(--bg)',border:'0.5px solid var(--border)',borderRadius:10,padding:'14px 16px',marginBottom:12}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+        <div>
+          <span style={{fontSize:12,color:'var(--text3)'}}>
+            {mode==='similar'?`Similar to "${target?.title}"`:mode==='director'?`Creator of "${target?.title}"`:mode==='recommend'?'Recommendations':mode==='custom'?'AI answer':'Analysis'}
+          </span>
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          <button onClick={onNew} style={{padding:'4px 10px',fontSize:12,background:'var(--bluebg)',border:'0.5px solid var(--blue)',borderRadius:6,color:'var(--bluetext)'}}>New</button>
+          <button onClick={onClose} style={{padding:'4px 10px',fontSize:12,background:'none',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>✕</button>
+        </div>
+      </div>
+      {loading ? (
+        <div style={{textAlign:'center',padding:'2rem 0',color:'var(--text3)'}}>
+          <span className="spin" style={{fontSize:20,display:'block',marginBottom:8}}>◌</span>
+          <span style={{fontSize:13}}>Thinking…</span>
+        </div>
+      ) : result ? (
+        <div style={{fontSize:14,lineHeight:1.75,color:'var(--text)',whiteSpace:'pre-wrap'}}>{result}</div>
+      ) : null}
+    </div>
+  );
+}
+
+function AddModal({onAdd, onClose}) {
+  const [form, setForm] = useState({title:'',section:'tv',notes:'',tags:'',rating:null});
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:'var(--bg)',borderRadius:12,padding:'1.25rem',width:'90%',maxWidth:440,border:'0.5px solid var(--border2)'}}>
+        <h2 style={{fontSize:16,fontWeight:600,marginBottom:14}}>Add title</h2>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Title *"
+            style={{fontSize:14,padding:'7px 10px',background:'var(--bg2)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)'}}/>
+          <select value={form.section} onChange={e=>set('section',e.target.value)}
+            style={{fontSize:14,padding:'7px 10px',background:'var(--bg2)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)'}}>
+            <option value="tv">TV Series</option>
+            <option value="films">Film</option>
+            <option value="standup">Stand-Up</option>
+            <option value="queue">To Watch / Queued</option>
+          </select>
+          <input value={form.tags} onChange={e=>set('tags',e.target.value)} placeholder="Tags (comma-separated, e.g. UK, detective, comedy)"
+            style={{fontSize:14,padding:'7px 10px',background:'var(--bg2)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)'}}/>
+          <input value={form.notes} onChange={e=>set('notes',e.target.value)} placeholder="Notes"
+            style={{fontSize:14,padding:'7px 10px',background:'var(--bg2)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)'}}/>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:13,color:'var(--text2)'}}>Rating:</span>
+            <StarRating value={form.rating} onChange={v=>set('rating',v)} size={16}/>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:8,marginTop:14,justifyContent:'flex-end'}}>
+          <button onClick={onClose} style={{padding:'6px 14px',fontSize:13,background:'none',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>Cancel</button>
+          <button onClick={()=>{if(form.title)onAdd(form);}} disabled={!form.title}
+            style={{padding:'6px 14px',fontSize:13,background:'var(--bluebg)',border:'0.5px solid var(--blue)',borderRadius:6,color:'var(--bluetext)',fontWeight:600}}>Add</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [data, setData] = useState(DATA);
+  const [search, setSearch] = useState('');
+  const [section, setSection] = useState('all');
+  const [sortBy, setSortBy] = useState('alpha');
+  const [tag, setTag] = useState(null);
+  const [showDisliked, setShowDisliked] = useState(false);
+  const [aiPanel, setAiPanel] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [enriched, setEnriched] = useState({});
+  const [enrichLoading, setEnrichLoading] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [customQ, setCustomQ] = useState('');
+  const [activeTab, setActiveTab] = useState('library');
+  const [recFocus, setRecFocus] = useState(null);
+
+  const all = useMemo(()=>[
+    ...data.tv.map(i=>({...i,section:'tv'})),
+    ...data.films.map(i=>({...i,section:'films'})),
+    ...data.standup.map(i=>({...i,section:'standup'})),
+    ...data.queue.map(i=>({...i,section:'queue'})),
+  ],[data]);
+
+  const allTags = useMemo(()=>{
+    const c={};
+    all.forEach(i=>(i.tags||[]).forEach(t=>{c[t]=(c[t]||0)+1;}));
+    return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([t])=>t);
+  },[all]);
+
+  const topTags = allTags.slice(0,18);
+
+  const filtered = useMemo(()=>{
+    let items = all;
+    if(section!=='all') items=items.filter(i=>i.section===section);
+    if(!showDisliked) items=items.filter(i=>!i.disliked);
+    if(search) items=items.filter(i=>i.title.toLowerCase().includes(search.toLowerCase())||((i.notes||'').toLowerCase().includes(search.toLowerCase())));
+    if(tag) items=items.filter(i=>(i.tags||[]).includes(tag));
+    if(sortBy==='alpha') items=[...items].sort((a,b)=>a.title.localeCompare(b.title));
+    else if(sortBy==='rating') items=[...items].sort((a,b)=>(b.rating||0)-(a.rating||0));
+    else if(sortBy==='section') items=[...items].sort((a,b)=>a.section.localeCompare(b.section));
+    return items;
+  },[all,section,search,tag,showDisliked,sortBy]);
+
+  const stats = useMemo(()=>{
+    const rated = all.filter(i=>i.rating);
+    return {
+      total:all.length,
+      rated:rated.length,
+      avg:(rated.reduce((s,i)=>s+i.rating,0)/Math.max(1,rated.length)).toFixed(1),
+      disliked:all.filter(i=>i.disliked).length,
+      watching:all.filter(i=>i.watching).length,
+    };
+  },[all]);
+
+  const buildSystemPrompt = ()=>{
+    const rated = all.filter(i=>i.rating&&!i.disliked).sort((a,b)=>b.rating-a.rating);
+    const top5s = rated.filter(i=>i.rating===5).slice(0,15).map(i=>i.title);
+    const top4s = rated.filter(i=>i.rating===4).slice(0,10).map(i=>i.title);
+    const dislikes = all.filter(i=>i.disliked).map(i=>i.title);
+    return `You are a TV and film recommendation engine for Chris, who lives in Falmouth, Cornwall, UK.
+
+STREAMING SERVICES (UK): Netflix, NOW Entertainment (Sky Atlantic/Sky Max), Discovery+/HBO Max, Prime Video, Apple TV+, Freeview. Does NOT have BritBox.
+
+TASTE PROFILE:
+- Loves: crime/detective procedurals, British comedy, Holmes-adjacent content (is a Holmes completionist), warm character-driven ensemble comedies with older leads, Australian content, blue-sky procedurals (quirky high-competence specialists), stand-up specials
+- 5-star titles: ${top5s.join(', ')}
+- 4-star titles: ${top4s.join(', ')}
+- Disliked: ${dislikes.join(', ')||'none recorded'}
+
+Respond in friendly prose. Use bullet points for lists. Be specific about UK streaming availability. Max 350 words.`;
+  };
+
+  const callAI = async (prompt, mode, target) => {
+    setAiLoading(true);
+    setAiPanel({loading:true,result:null,mode,target});
+    setActiveTab('ai');
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1000,
+          system:buildSystemPrompt(),
+          messages:[{role:'user',content:prompt}]
+        })
+      });
+      const d = await res.json();
+      const text = d.content?.[0]?.text||'No response.';
+      setAiPanel({loading:false,result:text,mode,target});
+    } catch(e) {
+      setAiPanel({loading:false,result:'Error: '+e.message,mode:null,target:null});
+    }
+    setAiLoading(false);
+  };
+
+  const enrichItem = async (item) => {
+    setEnrichLoading(item.id);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:800,
+          system:'Return ONLY valid JSON with no markdown, no backticks, no preamble.',
+          messages:[{role:'user',content:`Return metadata for the TV show or film "${item.title}" as JSON:
+{"director":"","creator":"","years":"","network":"","genre":[],"themes":[],"cast":[],"similar":[],"imdb_score":"","summary":"","whyWatch":""}
+where: similar = 3 comparable titles, cast = top 3 cast members, themes = 3-4 thematic tags, whyWatch = one sentence tailored for someone who loves crime procedurals, British comedy, and Holmes-adjacent detective shows.`}]
+        })
+      });
+      const d = await res.json();
+      const text = d.content?.[0]?.text||'{}';
+      try {
+        const meta = JSON.parse(text.replace(/```json|```/g,'').trim());
+        setEnriched(prev=>({...prev,[item.id]:meta}));
+      } catch(e) {
+        setEnriched(prev=>({...prev,[item.id]:{error:'Parse error'}}));
+      }
+    } catch(e) {
+      setEnriched(prev=>({...prev,[item.id]:{error:e.message}}));
+    }
+    setEnrichLoading(null);
+  };
+
+  const updateItem = (id, sectionKey, changes) => {
+    setData(prev=>({...prev,[sectionKey]:prev[sectionKey].map(i=>i.id===id?{...i,...changes}:i)}));
+  };
+
+  const removeItem = (id, sectionKey) => {
+    setData(prev=>({...prev,[sectionKey]:prev[sectionKey].filter(i=>i.id!==id)}));
+  };
+
+  const addItem = (form) => {
+    const sec = form.section;
+    const newItem = {
+      id:`${sec[0]}${Date.now()}`,
+      title:form.title,
+      cat:'',
+      rating:form.rating,
+      notes:form.notes,
+      tags:form.tags.split(',').map(t=>t.trim()).filter(Boolean),
+    };
+    setData(prev=>({...prev,[sec]:[...prev[sec],newItem]}));
+    setShowAdd(false);
+  };
+
+  const REC_FOCUSES = ['Holmes / detective procedural','British comedy','warm ensemble comedy with older leads','Australian content','crime drama','blue-sky procedural','stand-up comedy'];
+
+  return (
+    <div style={{maxWidth:700,margin:'0 auto',padding:'1rem 1rem 4rem',minHeight:'100vh'}}>
+      {/* Header */}
+      <div style={{marginBottom:16}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+          <h1 style={{fontSize:22,fontWeight:700,letterSpacing:'-0.5px'}}>Watchlist</h1>
+          <button onClick={()=>setShowAdd(true)}
+            style={{padding:'6px 14px',fontSize:13,background:'var(--bluebg)',border:'0.5px solid var(--blue)',borderRadius:8,color:'var(--bluetext)',fontWeight:600}}>+ Add</button>
+        </div>
+        {/* Stats */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6,marginBottom:14}}>
+          {[
+            {l:'Titles',v:stats.total},
+            {l:'Rated',v:stats.rated},
+            {l:'Avg ★',v:stats.avg},
+            {l:'Watching',v:stats.watching},
+            {l:'Disliked',v:stats.disliked},
+          ].map(s=>(
+            <div key={s.l} style={{background:'var(--bg)',border:'0.5px solid var(--border)',borderRadius:8,padding:'8px 6px',textAlign:'center'}}>
+              <p style={{fontSize:10,color:'var(--text3)',marginBottom:2,textTransform:'uppercase',letterSpacing:'0.5px'}}>{s.l}</p>
+              <p style={{fontSize:18,fontWeight:700}}>{s.v}</p>
+            </div>
+          ))}
+        </div>
+        {/* Tabs */}
+        <div style={{display:'flex',gap:4,marginBottom:10,borderBottom:'0.5px solid var(--border)',paddingBottom:8}}>
+          {[['library','Library'],['recommend','Recommend'],['ai','AI Results']].map(([k,l])=>(
+            <button key={k} onClick={()=>setActiveTab(k)}
+              style={{padding:'5px 12px',fontSize:13,background:activeTab===k?'var(--bg)':'none',border:`0.5px solid ${activeTab===k?'var(--border2)':'transparent'}`,borderRadius:6,color:activeTab===k?'var(--text)':'var(--text2)',fontWeight:activeTab===k?600:400}}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Library Tab */}
+      {activeTab==='library'&&(
+        <div>
+          <div style={{display:'flex',gap:6,marginBottom:8,flexWrap:'wrap'}}>
+            {[['all','All'],['tv','TV'],['films','Films'],['standup','Stand-Up'],['queue','To Watch']].map(([k,l])=>(
+              <button key={k} onClick={()=>setSection(k)}
+                style={{padding:'4px 10px',fontSize:13,background:section===k?'var(--bluebg)':'none',border:`0.5px solid ${section===k?'var(--blue)':'var(--border)'}`,borderRadius:6,color:section===k?'var(--bluetext)':'var(--text2)'}}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <div style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"
+              style={{flex:1,fontSize:13,padding:'7px 10px',background:'var(--bg)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)'}}/>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+              style={{fontSize:13,padding:'7px 8px',background:'var(--bg)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)'}}>
+              <option value="alpha">A–Z</option>
+              <option value="rating">Rating</option>
+              <option value="section">Type</option>
+            </select>
+            <button onClick={()=>setShowDisliked(s=>!s)}
+              style={{padding:'7px 10px',fontSize:12,background:showDisliked?'#2d1915':'none',border:`0.5px solid ${showDisliked?'#e05a4a':'var(--border)'}`,borderRadius:6,color:showDisliked?'#f0a090':'var(--text3)'}}>
+              {showDisliked?'Hide disliked':'Show disliked'}
+            </button>
+          </div>
+          <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:10}}>
+            {topTags.map(t=>(
+              <Tag key={t} label={t} active={tag===t} onClick={()=>setTag(tag===t?null:t)}/>
+            ))}
+            {tag&&<button onClick={()=>setTag(null)} style={{padding:'2px 7px',fontSize:11,background:'none',border:'0.5px solid var(--border)',borderRadius:20,color:'var(--text3)'}}>clear ✕</button>}
+          </div>
+          <p style={{fontSize:12,color:'var(--text3)',marginBottom:8}}>{filtered.length} title{filtered.length!==1?'s':''}{tag?` tagged "${tag}"`:''}</p>
+          <div>
+            {filtered.slice(0,120).map(item=>(
+              <ItemRow key={item.id} item={item}
+                onUpdate={c=>updateItem(item.id,item.section,c)}
+                onRemove={()=>removeItem(item.id,item.section)}
+                onAI={callAI}
+                enriched={enriched}
+                onEnrich={enrichItem}
+                enrichLoading={enrichLoading}
+              />
+            ))}
+            {filtered.length>120&&<p style={{fontSize:12,color:'var(--text3)',textAlign:'center',padding:'12px 0'}}>Showing 120 of {filtered.length} — use search or tag filters to narrow down</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Recommend Tab */}
+      {activeTab==='recommend'&&(
+        <div>
+          <p style={{fontSize:14,color:'var(--text2)',marginBottom:14}}>Get personalised recommendations based on your full watch history and ratings. Pick a focus area or go general.</p>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:16}}>
+            {REC_FOCUSES.map(f=>(
+              <button key={f} onClick={()=>setRecFocus(recFocus===f?null:f)}
+                style={{padding:'6px 12px',fontSize:13,background:recFocus===f?'var(--bluebg)':'var(--bg)',border:`0.5px solid ${recFocus===f?'var(--blue)':'var(--border)'}`,borderRadius:6,color:recFocus===f?'var(--bluetext)':'var(--text2)'}}>
+                {f}
+              </button>
+            ))}
+          </div>
+          <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+            <button onClick={()=>callAI(`Give me 8 personalised recommendations${recFocus?` with a focus on: ${recFocus}`:''} based on my full watch history. For each, tell me: (1) why it matches my tastes specifically, (2) which streaming service it's on in the UK, (3) any caveats. Format each as a numbered entry with title in bold.`,'recommend',{title:recFocus||'General'})}
+              style={{padding:'8px 16px',fontSize:14,background:'var(--bluebg)',border:'0.5px solid var(--blue)',borderRadius:8,color:'var(--bluetext)',fontWeight:600}}>
+              Get recommendations ↗
+            </button>
+            <button onClick={()=>callAI('Based on my watch history, analyse my taste patterns. What genres, tones, directors, and themes do I consistently love? What patterns do you see in my 5-star choices vs 3-star? What gaps might I want to explore?','analyse',null)}
+              style={{padding:'8px 16px',fontSize:14,background:'var(--bg)',border:'0.5px solid var(--border)',borderRadius:8,color:'var(--text2)'}}>
+              Analyse my taste ↗
+            </button>
+          </div>
+          <div style={{marginBottom:10}}>
+            <p style={{fontSize:13,color:'var(--text2)',marginBottom:6}}>Or ask anything:</p>
+            <div style={{display:'flex',gap:8}}>
+              <input value={customQ} onChange={e=>setCustomQ(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter'&&customQ.trim())callAI(customQ,'custom',null);}}
+                placeholder="e.g. What should I watch next on Prime Video? Or: films like Hot Fuzz?"
+                style={{flex:1,fontSize:13,padding:'8px 10px',background:'var(--bg)',border:'0.5px solid var(--border2)',borderRadius:6,color:'var(--text)'}}/>
+              <button onClick={()=>{if(customQ.trim())callAI(customQ,'custom',null);}}
+                style={{padding:'8px 14px',fontSize:13,background:'var(--bg)',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>Ask ↗</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Results Tab */}
+      {activeTab==='ai'&&(
+        <div>
+          {aiPanel ? (
+            <AIPanel
+              loading={aiPanel.loading}
+              result={aiPanel.result}
+              mode={aiPanel.mode}
+              target={aiPanel.target}
+              onClose={()=>setAiPanel(null)}
+              onNew={()=>setActiveTab('recommend')}
+            />
+          ) : (
+            <div style={{textAlign:'center',padding:'3rem 0',color:'var(--text3)'}}>
+              <p style={{fontSize:14}}>No AI results yet.</p>
+              <button onClick={()=>setActiveTab('recommend')} style={{marginTop:12,padding:'8px 16px',fontSize:13,background:'none',border:'0.5px solid var(--border)',borderRadius:6,color:'var(--text2)'}}>Go to Recommendations →</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showAdd&&<AddModal onAdd={addItem} onClose={()=>setShowAdd(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.render(React.createElement(App), document.getElementById('root'));
+</script>
+</body>
+</html>

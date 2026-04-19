@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#03030a" />
+  <title>Nutrition Hub</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #03030a; min-height: 100vh; width: 100%; overflow-x: hidden; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+// ── Data Export/Import Tab ─────────────────────────────────────────────────
+function DataTab() {
+  const [status, setStatus] = useState("");
+  const importRef = useRef();
+
+  const getAllKeys = () => {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("nh_"))) keys.push(k);
+    }
+    return keys;
+  };
+
+  const exportData = () => {
+    const data = {};
+    getAllKeys().forEach(k => {
+      try { data[k] = JSON.parse(localStorage.getItem(k)); }
+      catch { data[k] = localStorage.getItem(k); }
+    });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "nutrition-hub-backup-" + new Date().toISOString().split("T")[0] + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus("✓ Exported " + Object.keys(data).length + " keys");
+  };
+
+  const importData = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        let count = 0;
+        Object.entries(data).forEach(([k, v]) => {
+          localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v));
+          count++;
+        });
+        setStatus("✓ Imported " + count + " keys — reload the page to see changes");
+      } catch (err) {
+        setStatus("✗ Import failed: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const clearAll = () => {
+    if (!window.confirm("Delete ALL Nutrition Hub data? This cannot be undone.")) return;
+    getAllKeys().forEach(k => localStorage.removeItem(k));
+    setStatus("✓ All data cleared");
+  };
+
+  const keys = getAllKeys();
+  const logKeys = keys.filter(k => k.startsWith("nh_log_")).sort().reverse();
+
+  const s = {
+    card: { background: "linear-gradient(135deg,#0c0c1a,#0a0a16)", border: "1px solid #2a2a48", borderRadius: 14, padding: "16px 18px", marginBottom: 10, boxShadow: "0 4px 24px #00000060" },
+    btn: { background: "linear-gradient(135deg,#22d3ee,#06b6d4)", color: "#030310", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 700, cursor: "pointer", fontSize: 12, fontFamily: "inherit", boxShadow: "0 0 20px #22d3ee40", letterSpacing: 1, width: "100%", marginBottom: 8 },
+    dbtn: { background: "transparent", border: "1px solid #f43f5e40", color: "#f43f5e", borderRadius: 8, padding: "10px 20px", fontWeight: 600, cursor: "pointer", fontSize: 12, fontFamily: "inherit", width: "100%", marginBottom: 8 },
+    gbtn: { background: "transparent", border: "1px solid #2a2a48", color: "#7a8a9a", borderRadius: 8, padding: "10px 20px", cursor: "pointer", fontSize: 12, fontFamily: "inherit", width: "100%", marginBottom: 8 },
+  };
+
+  return (
+    <div style={{ padding: "12px 14px", animation: "fi 0.3s ease", position: "relative", zIndex: 1, fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>
+      <div style={s.card}>
+        <div style={{ fontSize: 8, letterSpacing: 3, color: "#22d3ee", fontWeight: 600, marginBottom: 12 }}>DATA MANAGEMENT</div>
+        <div style={{ fontSize: 9, color: "#8896a6", marginBottom: 16, lineHeight: 1.7 }}>
+          {keys.length} stored keys · {logKeys.length} logged days
+        </div>
+
+        <button style={s.btn} onClick={exportData}>⬇ Export All Data (JSON)</button>
+
+        <input ref={importRef} type="file" accept=".json" style={{ display: "none" }}
+          onChange={importData} />
+        <button style={s.gbtn} onClick={() => importRef.current.click()}>⬆ Import Backup (JSON)</button>
+
+        <button style={s.dbtn} onClick={clearAll}>✕ Clear All Data</button>
+
+        {status && (
+          <div style={{ fontSize: 10, color: status.startsWith("✓") ? "#22d3ee" : "#f43f5e", padding: "8px 10px", background: "#080812", borderRadius: 6, marginTop: 4 }}>
+            {status}
+          </div>
+        )}
+      </div>
+
+      <div style={s.card}>
+        <div style={{ fontSize: 8, letterSpacing: 3, color: "#22d3ee", fontWeight: 600, marginBottom: 10 }}>LOGGED DAYS</div>
+        {logKeys.length === 0 && <div style={{ fontSize: 10, color: "#8896a6" }}>No days logged yet</div>}
+        <div style={{ maxHeight: 300, overflowY: "auto" }}>
+          {logKeys.map(k => {
+            const date = k.replace("nh_log_", "");
+            let entries = [];
+            try { entries = JSON.parse(localStorage.getItem(k)) || []; } catch {}
+            const kcal = Math.round(entries.reduce((a, e) => a + (e.calories || 0), 0));
+            return (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #1a1a28", alignItems: "center" }}>
+                <span style={{ fontSize: 10, color: "#b8c8d8" }}>{date}</span>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <span style={{ fontSize: 9, color: "#8896a6" }}>{entries.length} items</span>
+                  <span style={{ fontSize: 11, color: "#22d3ee" }}>{kcal} kcal</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={s.card}>
+        <div style={{ fontSize: 8, letterSpacing: 3, color: "#22d3ee", fontWeight: 600, marginBottom: 10 }}>SHARE DATA WITH CLAUDE</div>
+        <p style={{ fontSize: 10, color: "#8896a6", lineHeight: 1.7, marginBottom: 12 }}>
+          Export your data, then upload the JSON file to a Claude conversation. Claude can analyse your trends, suggest meal plans, or help debug the app.
+        </p>
+        <button style={s.btn} onClick={exportData}>Export for Claude</button>
+      </div>
+    </div>
+  );
+}
+
+
+
+const H = 188;
+const SK = { log: "nh_log_", inv: "nh_inv", wt: "nh_wt", cache: "nh_ncache" };
+const today = () => new Date().toISOString().split("T")[0];
+
+const N = {
+  calories:     { label:"Calories",      unit:"kcal", g:"macro",   t:2400,  c:"#f97316", p:0 },
+  protein:      { label:"Protein",       unit:"g",    g:"macro",   t:190,   c:"#3b82f6", p:1 },
+  carbs:        { label:"Carbs",         unit:"g",    g:"macro",   t:270,   c:"#eab308", p:1 },
+  fat:          { label:"Fat",           unit:"g",    g:"macro",   t:80,    c:"#ec4899", p:1 },
+  saturatedFat: { label:"Sat. Fat",      unit:"g",    g:"macro",   t:20,    c:"#f43f5e", p:1 },
+  fibre:        { label:"Fibre",         unit:"g",    g:"macro",   t:30,    c:"#22c55e", p:1 },
+  sugar:        { label:"Sugar",         unit:"g",    g:"macro",   t:50,    c:"#fb923c", p:1 },
+  starch:       { label:"Starch",        unit:"g",    g:"macro",   t:220,   c:"#a3e635", p:1 },
+  sodium:       { label:"Sodium",        unit:"mg",   g:"mineral", t:2300,  c:"#a78bfa", p:0 },
+  potassium:    { label:"Potassium",     unit:"mg",   g:"mineral", t:3500,  c:"#10b981", p:0 },
+  calcium:      { label:"Calcium",       unit:"mg",   g:"mineral", t:1000,  c:"#06b6d4", p:0 },
+  magnesium:    { label:"Magnesium",     unit:"mg",   g:"mineral", t:300,   c:"#8b5cf6", p:0 },
+  phosphorus:   { label:"Phosphorus",    unit:"mg",   g:"mineral", t:700,   c:"#60a5fa", p:0 },
+  iron:         { label:"Iron",          unit:"mg",   g:"mineral", t:8.7,   c:"#ef4444", p:1 },
+  zinc:         { label:"Zinc",          unit:"mg",   g:"mineral", t:9.5,   c:"#8896a6", p:1 },
+  copper:       { label:"Copper",        unit:"mg",   g:"mineral", t:1.2,   c:"#b45309", p:2 },
+  selenium:     { label:"Selenium",      unit:"ug",   g:"mineral", t:75,    c:"#0891b2", p:1 },
+  iodine:       { label:"Iodine",        unit:"ug",   g:"mineral", t:150,   c:"#7c3aed", p:0 },
+  manganese:    { label:"Manganese",     unit:"mg",   g:"mineral", t:2.3,   c:"#9f7aea", p:2 },
+  chromium:     { label:"Chromium",      unit:"ug",   g:"mineral", t:35,    c:"#4ade80", p:1 },
+  vitA:         { label:"Vitamin A",     unit:"ug",   g:"vitamin", t:900,   c:"#f59e0b", p:0 },
+  vitC:         { label:"Vitamin C",     unit:"mg",   g:"vitamin", t:90,    c:"#f97316", p:1 },
+  vitD:         { label:"Vitamin D",     unit:"ug",   g:"vitamin", t:10,    c:"#fbbf24", p:1 },
+  vitE:         { label:"Vitamin E",     unit:"mg",   g:"vitamin", t:15,    c:"#fb923c", p:1 },
+  vitK:         { label:"Vitamin K",     unit:"ug",   g:"vitamin", t:120,   c:"#84cc16", p:0 },
+  vitB1:        { label:"B1 Thiamine",   unit:"mg",   g:"vitamin", t:1.2,   c:"#34d399", p:2 },
+  vitB2:        { label:"B2 Riboflavin", unit:"mg",   g:"vitamin", t:1.3,   c:"#2dd4bf", p:2 },
+  vitB3:        { label:"B3 Niacin",     unit:"mg",   g:"vitamin", t:16,    c:"#38bdf8", p:1 },
+  vitB5:        { label:"B5 Pantothenic",unit:"mg",   g:"vitamin", t:5,     c:"#818cf8", p:1 },
+  vitB6:        { label:"B6",            unit:"mg",   g:"vitamin", t:1.7,   c:"#a78bfa", p:2 },
+  vitB7:        { label:"B7 Biotin",     unit:"ug",   g:"vitamin", t:30,    c:"#c084fc", p:1 },
+  vitB9:        { label:"B9 Folate",     unit:"ug",   g:"vitamin", t:400,   c:"#e879f9", p:0 },
+  vitB12:       { label:"B12",           unit:"ug",   g:"vitamin", t:2.4,   c:"#f472b6", p:1 },
+  omega3:       { label:"Omega-3",       unit:"mg",   g:"fat",     t:1600,  c:"#0ea5e9", p:0 },
+  omega6:       { label:"Omega-6",       unit:"mg",   g:"fat",     t:14000, c:"#38bdf8", p:0 },
+  cholesterol:  { label:"Cholesterol",   unit:"mg",   g:"fat",     t:300,   c:"#f87171", p:0 },
+  water:        { label:"Water",         unit:"ml",   g:"hydro",   t:3000,  c:"#0ea5e9", p:0 },
+};
+
+const GROUPS = { macro:"Macronutrients", mineral:"Minerals", vitamin:"Vitamins", fat:"Fatty Acids", hydro:"Hydration" };
+const zero = () => Object.fromEntries(Object.keys(N).map(k => [k, 0]));
+const pct = (v, k) => Math.min(100, Math.round(((v || 0) / N[k].t) * 100));
+const fmt = (v, k) => { const x = v || 0; return x < 0.01 ? "0" : x.toFixed(N[k].p); };
+
+const DB = [
+  {id:1,  name:"Tesco Whole Milk (100ml)",              calories:65,  protein:3.3, carbs:4.7,  fat:3.6,  saturatedFat:2.4, fibre:0,   sugar:4.7,  starch:0,  sodium:50,  potassium:140, calcium:120, magnesium:10, phosphorus:90,  iron:0.05,zinc:0.4, copper:0.01,selenium:1,  iodine:20, manganese:0,   chromium:0,  vitA:30, vitC:0,  vitD:0.1,vitE:0.1,vitK:1,  vitB1:0.04,vitB2:0.17,vitB3:0.1,vitB5:0.35,vitB6:0.04,vitB7:1.5,vitB9:5,  vitB12:0.5, omega3:80,  omega6:100,  cholesterol:14, water:88},
+  {id:2,  name:"Tesco Free Range Egg (1 large)",         calories:78,  protein:6.8, carbs:0,    fat:5.3,  saturatedFat:1.4, fibre:0,   sugar:0,    starch:0,  sodium:70,  potassium:70,  calcium:26,  magnesium:6,  phosphorus:100, iron:0.9, zinc:0.6, copper:0.05,selenium:8,  iodine:25, manganese:0.01,chromium:0.5,vitA:98, vitC:0,  vitD:1.6,vitE:1.0,vitK:0.3,vitB1:0.04,vitB2:0.25,vitB3:0.1,vitB5:0.7, vitB6:0.07,vitB7:10, vitB9:24, vitB12:0.9, omega3:90,  omega6:600,  cholesterol:186,water:75},
+  {id:3,  name:"Tesco Chicken Breast (100g cooked)",     calories:165, protein:31,  carbs:0,    fat:3.6,  saturatedFat:1.0, fibre:0,   sugar:0,    starch:0,  sodium:70,  potassium:256, calcium:15,  magnesium:29, phosphorus:220, iron:0.8, zinc:0.9, copper:0.05,selenium:22, iodine:3,  manganese:0.02,chromium:1,  vitA:6,  vitC:0,  vitD:0.1,vitE:0.3,vitK:0.1,vitB1:0.06,vitB2:0.1, vitB3:9.9,vitB5:0.9, vitB6:0.6, vitB7:1,  vitB9:8,  vitB12:0.3, omega3:60,  omega6:700,  cholesterol:88, water:65},
+  {id:4,  name:"Tesco Rolled Oats (50g)",                calories:183, protein:5.5, carbs:30,   fat:3.5,  saturatedFat:0.6, fibre:4.5, sugar:0.5,  starch:25, sodium:2,   potassium:175, calcium:20,  magnesium:47, phosphorus:145, iron:1.9, zinc:1.3, copper:0.15,selenium:7,  iodine:1,  manganese:1.4, chromium:3,  vitA:0,  vitC:0,  vitD:0,  vitE:0.6,vitK:2,  vitB1:0.2, vitB2:0.03,vitB3:0.5,vitB5:0.5, vitB6:0.05,vitB7:6,  vitB9:18, vitB12:0,   omega3:50,  omega6:1600, cholesterol:0,  water:6},
+  {id:5,  name:"Tesco Salmon Fillet (100g)",             calories:208, protein:20,  carbs:0,    fat:13,   saturatedFat:3.0, fibre:0,   sugar:0,    starch:0,  sodium:60,  potassium:363, calcium:12,  magnesium:25, phosphorus:240, iron:0.3, zinc:0.4, copper:0.04,selenium:36, iodine:14, manganese:0.01,chromium:0,  vitA:50, vitC:0,  vitD:11, vitE:2.5,vitK:0.5,vitB1:0.2, vitB2:0.4, vitB3:7,  vitB5:1.5, vitB6:0.8, vitB7:3,  vitB9:26, vitB12:4.0, omega3:2200,omega6:400,  cholesterol:63, water:65},
+  {id:6,  name:"Tesco Greek Yogurt (150g)",              calories:133, protein:11,  carbs:5.5,  fat:7.5,  saturatedFat:5.0, fibre:0,   sugar:5.5,  starch:0,  sodium:80,  potassium:195, calcium:165, magnesium:15, phosphorus:135, iron:0.1, zinc:0.7, copper:0.01,selenium:3,  iodine:28, manganese:0,   chromium:0,  vitA:55, vitC:0,  vitD:0.1,vitE:0.1,vitK:1,  vitB1:0.04,vitB2:0.22,vitB3:0.2,vitB5:0.5, vitB6:0.07,vitB7:2,  vitB9:12, vitB12:0.75,omega3:80,  omega6:150,  cholesterol:15, water:125},
+  {id:7,  name:"Tesco Banana (1 medium 120g)",           calories:108, protein:1.3, carbs:27.6, fat:0.4,  saturatedFat:0.1, fibre:3.1, sugar:14.4, starch:13, sodium:1,   potassium:430, calcium:7,   magnesium:32, phosphorus:27,  iron:0.36,zinc:0.24,copper:0.10,selenium:1.2,iodine:2,  manganese:0.27,chromium:0,  vitA:4,  vitC:12, vitD:0,  vitE:0.12,vitK:0.6,vitB1:0.04,vitB2:0.07,vitB3:0.7,vitB5:0.4, vitB6:0.37,vitB7:3,  vitB9:24, vitB12:0,   omega3:30,  omega6:50,   cholesterol:0,  water:88},
+  {id:8,  name:"Tesco Brown Rice (75g dry)",             calories:258, protein:5.7, carbs:54,   fat:1.9,  saturatedFat:0.4, fibre:2.3, sugar:0.5,  starch:52, sodium:2,   potassium:225, calcium:11,  magnesium:68, phosphorus:190, iron:1.1, zinc:1.2, copper:0.15,selenium:12, iodine:1,  manganese:1.5, chromium:2,  vitA:0,  vitC:0,  vitD:0,  vitE:0.5,vitK:1,  vitB1:0.19,vitB2:0.03,vitB3:2.6,vitB5:0.6, vitB6:0.15,vitB7:4,  vitB9:10, vitB12:0,   omega3:50,  omega6:700,  cholesterol:0,  water:5},
+  {id:9,  name:"Tesco Broccoli (100g)",                  calories:34,  protein:2.8, carbs:7,    fat:0.4,  saturatedFat:0.1, fibre:2.6, sugar:1.7,  starch:0,  sodium:30,  potassium:316, calcium:47,  magnesium:21, phosphorus:66,  iron:0.7, zinc:0.4, copper:0.05,selenium:2.5,iodine:4,  manganese:0.2, chromium:11, vitA:31, vitC:89, vitD:0,  vitE:0.8,vitK:101,vitB1:0.07,vitB2:0.12,vitB3:0.6,vitB5:0.6, vitB6:0.18,vitB7:2,  vitB9:63, vitB12:0,   omega3:100, omega6:50,   cholesterol:0,  water:90},
+  {id:10, name:"Tesco Sweet Potato (150g baked)",        calories:129, protein:2.3, carbs:30,   fat:0.2,  saturatedFat:0,   fibre:3.8, sugar:9.4,  starch:20, sodium:70,  potassium:540, calcium:38,  magnesium:27, phosphorus:62,  iron:0.7, zinc:0.4, copper:0.16,selenium:0.6,iodine:2,  manganese:0.5, chromium:3,  vitA:961,vitC:20, vitD:0,  vitE:1.4,vitK:4.6,vitB1:0.1, vitB2:0.1, vitB3:1.5,vitB5:0.95,vitB6:0.27,vitB7:3,  vitB9:11, vitB12:0,   omega3:10,  omega6:50,   cholesterol:0,  water:114},
+  {id:11, name:"Tesco Tuna in Water (100g)",             calories:109, protein:25.5,carbs:0,    fat:0.9,  saturatedFat:0.2, fibre:0,   sugar:0,    starch:0,  sodium:300, potassium:290, calcium:11,  magnesium:30, phosphorus:245, iron:0.9, zinc:0.6, copper:0.05,selenium:68, iodine:17, manganese:0.01,chromium:0,  vitA:14, vitC:0,  vitD:3.8,vitE:0.5,vitK:0,  vitB1:0.03,vitB2:0.09,vitB3:12, vitB5:0.9, vitB6:0.45,vitB7:0.1,vitB9:3,  vitB12:3.0, omega3:250, omega6:50,   cholesterol:45, water:73},
+  {id:12, name:"Tesco Mature Cheddar (100g)",            calories:403, protein:25,  carbs:0.4,  fat:34,   saturatedFat:21.7,fibre:0,   sugar:0.4,  starch:0,  sodium:600, potassium:115, calcium:740, magnesium:26, phosphorus:483, iron:0.3, zinc:3.1, copper:0.1, selenium:12, iodine:47, manganese:0.01,chromium:0,  vitA:290,vitC:0,  vitD:0.3,vitE:0.6,vitK:8,  vitB1:0.03,vitB2:0.43,vitB3:0.3,vitB5:1.0, vitB6:0.07,vitB7:1.8,vitB9:18, vitB12:2.0, omega3:330, omega6:600,  cholesterol:107,water:38},
+  {id:13, name:"Tesco Baked Beans (200g)",               calories:168, protein:8.4, carbs:27.6, fat:0.8,  saturatedFat:0.1, fibre:7.4, sugar:8,    starch:18, sodium:840, potassium:420, calcium:106, magnesium:34, phosphorus:130, iron:2.8, zinc:0.8, copper:0.2, selenium:4,  iodine:3,  manganese:0.5, chromium:2,  vitA:50, vitC:0,  vitD:0,  vitE:0.5,vitK:24, vitB1:0.13,vitB2:0.07,vitB3:1.2,vitB5:0.4, vitB6:0.1, vitB7:0.5,vitB9:26, vitB12:0,   omega3:50,  omega6:200,  cholesterol:0,  water:160},
+  {id:14, name:"Tesco Pasta (75g dry)",                  calories:263, protein:9.4, carbs:53,   fat:1.2,  saturatedFat:0.2, fibre:2.6, sugar:1.5,  starch:51, sodium:2,   potassium:135, calcium:18,  magnesium:28, phosphorus:110, iron:1.2, zinc:0.9, copper:0.13,selenium:35, iodine:2,  manganese:0.8, chromium:1,  vitA:0,  vitC:0,  vitD:0,  vitE:0.2,vitK:0.1,vitB1:0.14,vitB2:0.05,vitB3:2.0,vitB5:0.3, vitB6:0.1, vitB7:1,  vitB9:18, vitB12:0,   omega3:30,  omega6:300,  cholesterol:0,  water:5},
+  {id:15, name:"Tesco Blueberries (100g)",               calories:57,  protein:0.7, carbs:14.5, fat:0.3,  saturatedFat:0,   fibre:2.4, sugar:10,   starch:0,  sodium:1,   potassium:77,  calcium:6,   magnesium:6,  phosphorus:12,  iron:0.3, zinc:0.2, copper:0.06,selenium:0.1,iodine:0,  manganese:0.34,chromium:0.2,vitA:3,  vitC:9.7,vitD:0,  vitE:0.57,vitK:19, vitB1:0.04,vitB2:0.04,vitB3:0.4,vitB5:0.12,vitB6:0.05,vitB7:0.5,vitB9:6,  vitB12:0,   omega3:90,  omega6:120,  cholesterol:0,  water:84},
+  {id:16, name:"Tesco Semi-Skimmed Milk (100ml)",        calories:46,  protein:3.5, carbs:4.8,  fat:1.6,  saturatedFat:1.0, fibre:0,   sugar:4.8,  starch:0,  sodium:50,  potassium:155, calcium:124, magnesium:11, phosphorus:95,  iron:0.05,zinc:0.4, copper:0.01,selenium:1,  iodine:20, manganese:0,   chromium:0,  vitA:20, vitC:0,  vitD:0.05,vitE:0.05,vitK:0.5,vitB1:0.04,vitB2:0.17,vitB3:0.1,vitB5:0.35,vitB6:0.04,vitB7:1.5,vitB9:5,  vitB12:0.5, omega3:20,  omega6:50,   cholesterol:6,  water:91},
+  {id:17, name:"Chicken Breast Breaded Airfried (80g)",  calories:148, protein:18,  carbs:9,    fat:4.2,  saturatedFat:0.8, fibre:0.5, sugar:0.3,  starch:8,  sodium:280, potassium:210, calcium:12,  magnesium:22, phosphorus:175, iron:0.6, zinc:0.7, copper:0.04,selenium:17, iodine:2,  manganese:0.1, chromium:0.5,vitA:5,  vitC:0,  vitD:0.1,vitE:0.2,vitK:0.5,vitB1:0.05,vitB2:0.08,vitB3:7.5,vitB5:0.7, vitB6:0.45,vitB7:0.8,vitB9:6,  vitB12:0.25,omega3:45,  omega6:550,  cholesterol:65, water:48},
+  {id:18, name:"Tesco Fruit Fusion Zero (500ml)",        calories:3,   protein:0,   carbs:0.5,  fat:0,    saturatedFat:0,   fibre:0,   sugar:0.3,  starch:0,  sodium:20,  potassium:5,   calcium:0,   magnesium:0,  phosphorus:0,   iron:0,   zinc:0,   copper:0,   selenium:0,  iodine:0,  manganese:0,   chromium:0,  vitA:0,  vitC:0,  vitD:0,  vitE:0,  vitK:0,  vitB1:0,   vitB2:0,   vitB3:0,  vitB5:0,   vitB6:0,   vitB7:0,  vitB9:0,  vitB12:0,   omega3:0,   omega6:0,    cholesterol:0,  water:500},
+  {id:19, name:"Tesco Sesame Seed Roll (1)",             calories:195, protein:6.5, carbs:36,   fat:3.2,  saturatedFat:0.5, fibre:1.8, sugar:2.5,  starch:33, sodium:320, potassium:95,  calcium:55,  magnesium:18, phosphorus:75,  iron:1.4, zinc:0.7, copper:0.1, selenium:14, iodine:10, manganese:0.5, chromium:1,  vitA:0,  vitC:0,  vitD:0,  vitE:0.3,vitK:1,  vitB1:0.18,vitB2:0.07,vitB3:1.8,vitB5:0.25,vitB6:0.06,vitB7:1.5,vitB9:35, vitB12:0,   omega3:30,  omega6:450,  cholesterol:0,  water:28},
+  {id:20, name:"Tesco Wafer Thin Ham (1 slice 12.5g)",   calories:13,  protein:2.2, carbs:0.3,  fat:0.4,  saturatedFat:0.1, fibre:0,   sugar:0.2,  starch:0,  sodium:155, potassium:38,  calcium:2,   magnesium:2,  phosphorus:28,  iron:0.1, zinc:0.2, copper:0.01,selenium:3,  iodine:1,  manganese:0,   chromium:0,  vitA:0,  vitC:0,  vitD:0.1,vitE:0.05,vitK:0, vitB1:0.1, vitB2:0.03,vitB3:1.1,vitB5:0.15,vitB6:0.06,vitB7:0.2,vitB9:1,  vitB12:0.1, omega3:5,   omega6:40,   cholesterol:7,  water:10},
+  {id:21, name:"Tesco Pepperoni Pizza (1 pizza 390g)",   calories:897, protein:38,  carbs:104,  fat:35,   saturatedFat:14,  fibre:5.5, sugar:9,    starch:95, sodium:2340,potassium:520, calcium:390, magnesium:55, phosphorus:450, iron:4.2, zinc:3.2, copper:0.3, selenium:28, iodine:35, manganese:0.8, chromium:3,  vitA:120,vitC:2,  vitD:0.5,vitE:1.5,vitK:8,  vitB1:0.55,vitB2:0.38,vitB3:7.5,vitB5:1.2, vitB6:0.35,vitB7:4,  vitB9:75, vitB12:1.2, omega3:150, omega6:2800, cholesterol:75, water:190},
+  {id:22, name:"Tesco Peach Slices drained (100g)",      calories:45,  protein:0.5, carbs:11,   fat:0.1,  saturatedFat:0,   fibre:1.2, sugar:9.5,  starch:0,  sodium:5,   potassium:120, calcium:4,   magnesium:6,  phosphorus:12,  iron:0.2, zinc:0.1, copper:0.05,selenium:0.3,iodine:0,  manganese:0.05,chromium:0,  vitA:20, vitC:4,  vitD:0,  vitE:0.7,vitK:2,  vitB1:0.01,vitB2:0.02,vitB3:0.6,vitB5:0.1, vitB6:0.02,vitB7:0.3,vitB9:4,  vitB12:0,   omega3:10,  omega6:40,   cholesterol:0,  water:88},
+  {id:23, name:"Carlsberg 3.4% (440ml can)",             calories:136, protein:0.9, carbs:10,   fat:0,    saturatedFat:0,   fibre:0,   sugar:0.5,  starch:0,  sodium:22,  potassium:55,  calcium:7,   magnesium:8,  phosphorus:25,  iron:0.02,zinc:0.02,copper:0,   selenium:0,  iodine:0,  manganese:0.02,chromium:0,  vitA:0,  vitC:0,  vitD:0,  vitE:0,  vitK:0,  vitB1:0,   vitB2:0.03,vitB3:0.6,vitB5:0.1, vitB6:0.05,vitB7:0,  vitB9:8,  vitB12:0,   omega3:0,   omega6:0,    cholesterol:0,  water:420},
+  {id:24, name:"Tesco Peanut Butter (20g)",              calories:119, protein:4.9, carbs:3,    fat:10,   saturatedFat:2.0, fibre:1.4, sugar:1.4,  starch:1.5,sodium:80,  potassium:130, calcium:10,  magnesium:26, phosphorus:68,  iron:0.4, zinc:0.6, copper:0.1, selenium:1,  iodine:0,  manganese:0.4, chromium:1,  vitA:0,  vitC:0,  vitD:0,  vitE:1.9,vitK:0.2,vitB1:0.03,vitB2:0.03,vitB3:2.3,vitB5:0.3, vitB6:0.07,vitB7:15, vitB9:19, vitB12:0,   omega3:5,   omega6:2400, cholesterol:0,  water:0},
+  {id:25, name:"Tesco White Bread (1 slice 36g)",        calories:83,  protein:2.8, carbs:15.8, fat:0.7,  saturatedFat:0.15,fibre:0.8, sugar:1.5,  starch:14, sodium:220, potassium:45,  calcium:63,  magnesium:8,  phosphorus:30,  iron:0.6, zinc:0.3, copper:0.06,selenium:6,  iodine:8,  manganese:0.1, chromium:0.5,vitA:0,  vitC:0,  vitD:0,  vitE:0.1,vitK:0.1,vitB1:0.09,vitB2:0.04,vitB3:0.8,vitB5:0.1, vitB6:0.03,vitB7:0.5,vitB9:20, vitB12:0,   omega3:20,  omega6:200,  cholesterol:0,  water:15},
+];
+
+const SEED_INV = [
+  {name:"Baked Beans - Tesco Standard",qty:"6 tins",category:"canned"},
+  {name:"Baked Beans - Reduced Salt",qty:"3 tins",category:"canned"},
+  {name:"Baked Beans - Stockwell & Co.",qty:"5 tins",category:"canned"},
+  {name:"Red Kidney Beans",qty:"2 tins",category:"canned"},
+  {name:"Black Eyed Beans",qty:"1 tin",category:"canned"},
+  {name:"Butter Beans",qty:"1 tin",category:"canned"},
+  {name:"Borlotti Beans",qty:"1 tin",category:"canned"},
+  {name:"Pinto Beans",qty:"1 tin",category:"canned"},
+  {name:"Haricot Beans",qty:"1 tin",category:"canned"},
+  {name:"Chickpeas",qty:"1 tin",category:"canned"},
+  {name:"Chopped Tomatoes",qty:"4 tins",category:"canned"},
+  {name:"Plum Tomatoes",qty:"1 tin",category:"canned"},
+  {name:"Chicken in White Sauce",qty:"1 tin",category:"canned"},
+  {name:"Chili Con Carne",qty:"1 tin",category:"canned"},
+  {name:"Pineapple Slices",qty:"2 tins",category:"canned"},
+  {name:"Basmati Rice",qty:"2 x 1kg",category:"grains"},
+  {name:"Long Grain Rice",qty:"1 x 1kg",category:"grains"},
+  {name:"Microwave Rice Pouches",qty:"2 x 250g",category:"grains"},
+  {name:"Pasta - Penne",qty:"1 x 500g",category:"grains"},
+  {name:"Pasta - Fusilli",qty:"1 x 500g",category:"grains"},
+  {name:"Black Bean Spaghetti",qty:"2 packs",category:"grains"},
+  {name:"Naked Noodle Pots",qty:"8 pots",category:"grains"},
+  {name:"Sugar Snap Peas",qty:"1 pack",category:"fridge"},
+  {name:"Sweetcorn Cobettes",qty:"1 x 2-pack",category:"fridge"},
+  {name:"Cucumber",qty:"1",category:"fridge"},
+  {name:"Mixed Peppers",qty:"3",category:"fridge"},
+  {name:"Whole Milk (6pt)",qty:"~25% remaining",category:"fridge"},
+  {name:"Natural Yogurt (Large)",qty:"1",category:"fridge"},
+  {name:"Mature Cheddar",qty:"1400g",category:"fridge"},
+  {name:"Wafer Thin Ham",qty:"1 pack",category:"fridge"},
+  {name:"Fruit Fusion Zero (2L)",qty:"3 bottles",category:"fridge"},
+  {name:"Coke Zero",qty:"1 can",category:"fridge"},
+  {name:"Pork Shoulder Joint",qty:"1",category:"freezer"},
+  {name:"Beef Mince",qty:"1 x 500g",category:"freezer"},
+  {name:"Chicken Fillets",qty:"1 pack",category:"freezer"},
+  {name:"Chicken Goujons",qty:"1 pack",category:"freezer"},
+  {name:"Soffritto Mix",qty:"1 bag",category:"freezer"},
+  {name:"Sweetcorn (frozen)",qty:"1 bag",category:"freezer"},
+  {name:"Sliced Carrots (frozen)",qty:"1 bag",category:"freezer"},
+  {name:"Triple Chocolate Ice Cream",qty:"1",category:"freezer"},
+  {name:"Pizza - Cheese and Tomato",qty:"3",category:"freezer"},
+  {name:"Pizza - Pepperoni",qty:"1",category:"freezer"},
+  {name:"Butter Chicken Sauce",qty:"1 jar",category:"sauces"},
+  {name:"Tomato and Herb Sauce",qty:"1 jar",category:"sauces"},
+  {name:"Carbonara Sauce",qty:"1 jar",category:"sauces"},
+  {name:"Baresa Pasta Bake Sauce",qty:"1 jar",category:"sauces"},
+  {name:"Jalapenos Red (Aleyna)",qty:"2 jars",category:"sauces"},
+  {name:"Jalapenos Green (Aleyna)",qty:"1 jar",category:"sauces"},
+  {name:"Rajah Tandoori Masala",qty:"1",category:"spices"},
+  {name:"Rajah Jeera Cumin",qty:"1",category:"spices"},
+  {name:"Chipotle Flakes",qty:"1",category:"spices"},
+  {name:"Chili Wizard Flakes",qty:"1",category:"spices"},
+  {name:"Foxs Golden Crunch Biscuits",qty:"1 sealed",category:"snacks"},
+  {name:"Maryland Minis",qty:"6-pack",category:"snacks"},
+  {name:"Monster Munch",qty:"1",category:"snacks"},
+  {name:"Butterkist Popcorn",qty:"2",category:"snacks"},
+].map((x, i) => ({ ...x, id: 1741200000000 + i, addedAt: "2026-03-05T18:18:00.000Z", seeded: true }));
+
+const parseTesco = (txt) => txt.split("\n").filter(l => l.trim().length > 2).map(line => {
+  const qm = line.match(/^(\d+)\s*[xX]\s*(.+)/) || line.match(/^(\d+)\s+(.+)/);
+  const price = (line.match(/[£][\d.]+/) || [""])[0];
+  if (qm) return { qty: parseInt(qm[1]) || 1, name: qm[2].replace(/[£][\d.]+/g, "").trim(), price, include: true };
+  return { qty: 1, name: line.replace(/[£][\d.]+/g, "").trim(), price, include: true };
+}).filter(p => p.name.length > 2);
+// ── Nutrition Cache ────────────────────────────────────────────────────────────
+// Normalise a food name to a stable cache key
+const cacheKey = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+const loadCache = () => {
+  try { return JSON.parse(localStorage.getItem(SK.cache) || "{}"); } catch { return {}; }
+};
+
+const saveCache = (cache) => {
+  try { localStorage.setItem(SK.cache, JSON.stringify(cache)); } catch {}
+};
+
+// Pre-seed cache with all DB items (per-unit values, i.e. qty=1)
+const seedCache = () => {
+  const existing = loadCache();
+  let dirty = false;
+  DB.forEach(f => {
+    const k = cacheKey(f.name);
+    if (!existing[k]) {
+      const entry = { displayName: f.name, source: "db" };
+      Object.keys(N).forEach(nk => { entry[nk] = f[nk] || 0; });
+      existing[k] = entry;
+      dirty = true;
+    }
+  });
+  // Seed vit stack items with known label values
+  const vitStack = [
+    { displayName: "Centrum Advance Adults Multivitamin", calories: 0, protein: 0, carbs: 0, fat: 0, saturatedFat: 0, fibre: 0, sugar: 0, starch: 0, sodium: 0, potassium: 0, calcium: 162, magnesium: 0, phosphorus: 0, iron: 7, zinc: 5, copper: 0.5, selenium: 27.5, iodine: 75, manganese: 1, chromium: 20, vitA: 800, vitC: 60, vitD: 5, vitE: 10, vitK: 30, vitB1: 1.1, vitB2: 1.4, vitB3: 16, vitB5: 6, vitB6: 1.4, vitB7: 150, vitB9: 200, vitB12: 1, omega3: 0, omega6: 0, cholesterol: 0, water: 0 },
+    { displayName: "Magnesium Supplement Pill 375mg", calories: 0, protein: 0, carbs: 0, fat: 0, saturatedFat: 0, fibre: 0, sugar: 0, starch: 0, sodium: 0, potassium: 0, calcium: 0, magnesium: 375, phosphorus: 0, iron: 0, zinc: 0, copper: 0, selenium: 0, iodine: 0, manganese: 0, chromium: 0, vitA: 0, vitC: 0, vitD: 0, vitE: 0, vitK: 0, vitB1: 0, vitB2: 0, vitB3: 0, vitB5: 0, vitB6: 0, vitB7: 0, vitB9: 0, vitB12: 0, omega3: 0, omega6: 0, cholesterol: 0, water: 0 },
+    { displayName: "Igennus Super B-Complex", calories: 0, protein: 0, carbs: 0, fat: 0, saturatedFat: 0, fibre: 0, sugar: 0, starch: 0, sodium: 0, potassium: 0, calcium: 0, magnesium: 0, phosphorus: 0, iron: 0, zinc: 0, copper: 0, selenium: 0, iodine: 0, manganese: 0, chromium: 0, vitA: 0, vitC: 0, vitD: 0, vitE: 0, vitK: 0, vitB1: 1.1, vitB2: 1.4, vitB3: 16, vitB5: 6, vitB6: 1.4, vitB7: 50, vitB9: 200, vitB12: 500, omega3: 0, omega6: 0, cholesterol: 0, water: 0 },
+    { displayName: "Fish Oil Capsule 1000mg", calories: 9, protein: 0, carbs: 0, fat: 1, saturatedFat: 0.2, fibre: 0, sugar: 0, starch: 0, sodium: 0, potassium: 0, calcium: 0, magnesium: 0, phosphorus: 0, iron: 0, zinc: 0, copper: 0, selenium: 0, iodine: 0, manganese: 0, chromium: 0, vitA: 0, vitC: 0, vitD: 0, vitE: 0, vitK: 0, vitB1: 0, vitB2: 0, vitB3: 0, vitB5: 0, vitB6: 0, vitB7: 0, vitB9: 0, vitB12: 0, omega3: 300, omega6: 50, cholesterol: 5, water: 0 },
+  ];
+  vitStack.forEach(item => {
+    const k = cacheKey(item.displayName);
+    if (!existing[k]) { existing[k] = { ...item, source: "seed" }; dirty = true; }
+  });
+  if (dirty) saveCache(existing);
+};
+
+// Write parsed AI items back to cache (normalised to qty=1 where possible)
+const writeToCache = (items) => {
+  const cache = loadCache();
+  items.forEach(item => {
+    const k = cacheKey(item.displayName || item.name || "");
+    if (k && !cache[k]) {
+      const entry = { displayName: item.displayName, source: "ai" };
+      Object.keys(N).forEach(nk => { entry[nk] = item[nk] || 0; });
+      cache[k] = entry;
+    }
+  });
+  saveCache(cache);
+};
+
+// Try to resolve a token (word/phrase) from cache — returns entry or null
+const resolveFromCache = (token, cache) => {
+  const k = cacheKey(token);
+  if (cache[k]) return { ...cache[k], _cacheKey: k };
+  // Fuzzy: find any cache key that contains all words of the token
+  const words = k.split("_").filter(w => w.length > 2);
+  if (!words.length) return null;
+  const match = Object.keys(cache).find(ck => words.every(w => ck.includes(w)));
+  return match ? { ...cache[match], _cacheKey: match } : null;
+};
+
+
+
+function CalBalance({ savedWt, consumed }) {
+  const tdee = Math.round(66.5 + 13.75 * savedWt + 5.003 * H - 6.75 * 35);
+  const rem = tdee - consumed;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div style={{ background: "#0a0a13", borderRadius: 8, padding: 10, textAlign: "center" }}>
+        <div style={{ fontSize: 9, color: "#8896a6" }}>TDEE</div>
+        <div style={{ fontSize: 16, color: "#f1f5f9" }}>{tdee}</div>
+      </div>
+      <div style={{ background: "#0a0a13", borderRadius: 8, padding: 10, textAlign: "center" }}>
+        <div style={{ fontSize: 9, color: "#8896a6" }}>REMAINING</div>
+        <div style={{ fontSize: 16, color: rem < 0 ? "#f43f5e" : "#22c55e" }}>{rem}</div>
+      </div>
+    </div>
+  );
+}
+
+const CAT = { fridge:"Fridge", freezer:"Freezer", canned:"Canned Goods", grains:"Grains and Pasta", sauces:"Sauces and Jars", spices:"Spices", snacks:"Snacks", order:"From Order", pantry:"Pantry" };
+const CAT_ICON = { fridge:"🥛", freezer:"🧊", canned:"🥫", grains:"🌾", sauces:"🫙", spices:"🌶", snacks:"🍪", order:"🛒", pantry:"🗄" };
+
+function App() {
+  const [tab, setTab] = useState("log");
+  const [viewDate, setViewDate] = useState(today());
+  const [entries, setEntries] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [savedWt, setSavedWt] = useState(null);
+  const [wtInput, setWtInput] = useState("");
+  const [avgRange, setAvgRange] = useState("7excl");   // "7excl"|"7incl"|"all"|"custom"
+  const [avgFrom, setAvgFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toISOString().split("T")[0]; });
+  const [avgTo, setAvgTo] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split("T")[0]; });
+  const [missedPrompt, setMissedPrompt] = useState(null);
+  const [mode, setMode] = useState("ai");
+  const [nlText, setNlText] = useState("");
+  const [nlLoading, setNlLoading] = useState(false);
+  const [nlParsed, setNlParsed] = useState(null);
+  const [nlError, setNlError] = useState("");
+  const [search, setSearch] = useState("");
+  const [selFood, setSelFood] = useState(null);
+  const [qty, setQty] = useState(1);
+  const [showDrop, setShowDrop] = useState(false);
+  const [lastAdded, setLastAdded] = useState(null);
+  const [nutGroup, setNutGroup] = useState("macro");
+  const [invTab, setInvTab] = useState("view");
+  const [orderTxt, setOrderTxt] = useState("");
+  const [parsedOrder, setParsedOrder] = useState([]);
+  const [orderStep, setOrderStep] = useState("paste");
+  const [photoB64, setPhotoB64] = useState(null);
+  const [aiMsg, setAiMsg] = useState("");
+  const [aiLoad, setAiLoad] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const [customVals, setCustomVals] = useState({});
+  const fileRef = useRef();
+
+  useEffect(() => {
+    seedCache();
+    const s = localStorage.getItem(SK.log + viewDate);
+    setEntries(s ? JSON.parse(s) : []);
+    const inv = localStorage.getItem(SK.inv);
+    if (inv) {
+      const p = JSON.parse(inv);
+      setInventory(p.length && p.some(i => i.seeded) ? p : SEED_INV);
+    } else {
+      setInventory(SEED_INV);
+    }
+    const w = localStorage.getItem(SK.wt);
+    if (w) setSavedWt(parseFloat(w));
+  }, [viewDate]);
+
+  // Check previous days for missed meals on first load
+  useEffect(() => {
+    const MEAL_THRESHOLD = 500; // kcal — below this we flag as potentially missed
+    const missed = [];
+    for (let i = 1; i <= 3; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const dk = d.toISOString().split("T")[0];
+      const s = localStorage.getItem(SK.log + dk);
+      const dayEntries = s ? JSON.parse(s) : [];
+      const kcal = dayEntries.reduce((a, e) => a + (e.calories || 0), 0);
+      const label = i === 1 ? "Yesterday" : d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+      if (kcal < MEAL_THRESHOLD) missed.push({ dk, label, kcal: Math.round(kcal) });
+    }
+    if (missed.length) setMissedPrompt(missed);
+  }, []);
+
+  useEffect(() => { localStorage.setItem(SK.log + viewDate, JSON.stringify(entries)); }, [entries, viewDate]);
+  useEffect(() => { localStorage.setItem(SK.inv, JSON.stringify(inventory)); }, [inventory]);
+
+  const totals = entries.reduce((a, e) => {
+    Object.keys(N).forEach(k => { a[k] = (a[k] || 0) + (e[k] || 0); });
+    return a;
+  }, zero());
+
+  const filtered = DB.filter(f => f.name.toLowerCase().includes(search.toLowerCase())).slice(0, 8);
+  const bmi = savedWt ? (savedWt / ((H / 100) ** 2)).toFixed(1) : null;
+
+  const addWater = (ml) => setEntries(prev => {
+    const w = prev.find(e => e._water);
+    if (w) return prev.map(e => e._water ? { ...e, water: (e.water || 0) + ml } : e);
+    return [...prev, { id: Date.now(), _water: true, displayName: "Water", meal: "--", water: ml, ...zero() }];
+  });
+
+  const addFromDB = () => {
+    if (!selFood) return;
+    const e = { ...selFood };
+    Object.keys(N).forEach(k => { e[k] = (selFood[k] || 0) * qty; });
+    e.id = Date.now(); e.meal = ""; e.qty = qty;
+    e.displayName = selFood.name + (qty !== 1 ? " x" + qty : "");
+    const ne = [...entries, e];
+    setEntries(ne);
+    const nt = ne.reduce((a, en) => { Object.keys(N).forEach(k => { a[k] = (a[k] || 0) + (en[k] || 0); }); return a; }, zero());
+    setLastAdded({ name: e.displayName, totals: nt });
+    // Cache this DB item for future AI lookups
+    const c2 = loadCache(); const ck = cacheKey(selFood.name);
+    if (!c2[ck]) { const ce = { displayName: selFood.name, source: "db" }; Object.keys(N).forEach(k => { ce[k] = selFood[k] || 0; }); c2[ck] = ce; saveCache(c2); }
+    setSelFood(null); setSearch(""); setQty(1); setShowDrop(false);
+  };
+
+  const addCustom = () => {
+    if (!customName) return;
+    const e = { id: Date.now(), meal: "", qty: 1, displayName: customName, name: customName, ...zero() };
+    Object.keys(N).forEach(k => { e[k] = parseFloat(customVals[k]) || 0; });
+    setEntries(prev => [...prev, e]);
+    setCustomName(""); setCustomVals({});
+  };
+
+  const parseNL = async () => {
+    if (!nlText.trim()) return;
+    setNlLoading(true); setNlError(""); setNlParsed(null);
+
+    // Expand vit stack shorthand before processing
+    const expandedText = nlText.trim().replace(/\bvit\s*stack\b/gi,
+      "Centrum Advance Adults Multivitamin, Magnesium Supplement Pill 375mg, Igennus Super B-Complex, Fish Oil Capsule 1000mg");
+
+    const cache = loadCache();
+    const dbNames = DB.map(f => f.name).join("; ");
+    const cacheNames = Object.values(cache).map(v => v.displayName).join("; ");
+
+    // Split text into comma/semicolon-separated tokens and try cache for each
+    const tokens = expandedText.split(/[,;]+/).map(t => t.trim()).filter(Boolean);
+    const resolved = [];
+    const unresolved = [];
+
+    tokens.forEach(token => {
+      // Extract leading qty e.g. "2x sesame rolls", "3 carlsberg"
+      const qtyMatch = token.match(/^(\d+(?:\.\d+)?)\s*[xX]?\s+(.+)/);
+      const qty = qtyMatch ? parseFloat(qtyMatch[1]) : 1;
+      const name = qtyMatch ? qtyMatch[2].trim() : token;
+      const hit = resolveFromCache(name, cache);
+      if (hit) {
+        const entry = { ...hit, id: Date.now() + resolved.length, _on: true, _fromCache: true };
+        Object.keys(N).forEach(k => { entry[k] = (hit[k] || 0) * qty; });
+        entry.displayName = (qty !== 1 ? qty + "x " : "") + hit.displayName;
+        entry.meal = "";
+        resolved.push(entry);
+      } else {
+        unresolved.push(token);
+      }
+    });
+
+    // If everything resolved from cache, done — no API call needed
+    if (!unresolved.length) {
+      setNlParsed(resolved);
+      setNlLoading(false);
+      return;
+    }
+
+    // Otherwise send only uncached items to API
+    const vitStackNote = "SHORTHAND: 'vit stack' means FOUR separate items: (1) Centrum Advance Adults multivitamin, (2) Magnesium supplement pill ~375mg, (3) Igennus Super B-Complex, (4) Fish oil capsule ~1000mg. Use accurate label values for each.";
+    const prompt = [
+      "You are a UK nutrition parser.",
+      "Known cached items (already resolved, DO NOT include these): " + cacheNames.slice(0, 500),
+      "Known Tesco items: " + dbNames,
+      vitStackNote,
+      "User logged these UNCACHED items only: " + unresolved.join(", "),
+      "Parse every item. Return a JSON array where each object has:",
+      "displayName (with qty),",
+      "calories, protein, carbs, fat, saturatedFat, fibre, sugar, starch (all grams),",
+      "sodium, potassium, calcium, magnesium, phosphorus, iron, zinc, copper, manganese (mg),",
+      "selenium, iodine, chromium, vitA, vitD, vitK, vitB7, vitB9, vitB12 (ug),",
+      "vitC, vitE, vitB1, vitB2, vitB3, vitB5, vitB6 (mg),",
+      "omega3, omega6, cholesterol (mg), water (ml of liquid).",
+      "Rules: Carlsberg 440ml 3.4% = 136kcal. Fruit fusion/fanta zero = ~3kcal per 500ml set water=ml.",
+      "Split each food into its own object. Use realistic UK label values.",
+      "Return ONLY the JSON array with no markdown or explanation."
+    ].join(" ");
+
+    try {
+      const apiKey = localStorage.getItem("anthropic_key");
+      if (!apiKey) {
+        const pKey = prompt("Please enter your Anthropic API Key for Food Parsing (Saved to your device):");
+        if(pKey) { localStorage.setItem("anthropic_key", pKey); }
+        else { setNlError("API Key required for AI functions."); setNlLoading(false); return; }
+      }
+      const activeKey = localStorage.getItem("anthropic_key");
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerously-allow-browser": "true"
+        },
+        body: JSON.stringify({ model: "claude-3-5-sonnet-20241022", max_tokens: 4000, messages: [{ role: "user", content: prompt }] })
+      });
+      const data = await res.json();
+      if (data.error) { setNlError("API error: " + data.error.message); setNlLoading(false); return; }
+      const txt = (data.content || []).map(b => b.text || "").join("");
+      if (!txt) { setNlError("Empty response from API. Status: " + res.status); setNlLoading(false); return; }
+      let raw = txt.replace(/^[\s\S]*?(\[)/, "[").replace(/\][^]*$/, "]");
+      if (!raw.trim().endsWith("]")) { raw = raw.replace(/,?\s*\{[^{]*$/, "") + "]"; }
+      const apiItems = JSON.parse(raw);
+      // Write new items to cache for next time
+      writeToCache(apiItems);
+      const apiParsed = apiItems.map((it, i) => ({ ...it, id: Date.now() + resolved.length + i, _on: true, _fromCache: false }));
+      setNlParsed([...resolved, ...apiParsed]);
+    } catch (e) {
+      // If API fails but we have some cache hits, show those at least
+      if (resolved.length) {
+        setNlParsed(resolved);
+        setNlError("Some items resolved from cache. API failed for: " + unresolved.join(", "));
+      } else {
+        setNlError("Error: " + e.message);
+      }
+    }
+    setNlLoading(false);
+  };
+
+  const confirmNL = () => {
+    const toAdd = nlParsed.filter(i => i._on).map(i => { const e = { ...i }; delete e._on; e.meal = ""; return e; });
+    const ne = [...entries, ...toAdd];
+    setEntries(ne);
+    const nt = ne.reduce((a, en) => { Object.keys(N).forEach(k => { a[k] = (a[k] || 0) + (en[k] || 0); }); return a; }, zero());
+    setLastAdded({ name: toAdd.length + " items added", totals: nt });
+    setNlParsed(null); setNlText("");
+  };
+
+  const removeEntry = (id) => setEntries(p => p.filter(e => e.id !== id));
+  const removeInv = (id) => setInventory(p => p.filter(i => i.id !== id));
+
+  const analysePhoto = async () => {
+    if (!photoB64) return;
+    const apiKey = localStorage.getItem("anthropic_key");
+    if (!apiKey) { setAiMsg("API Key missing. Click 'Settings' to add it."); return; }
+    setAiLoad(true); setAiMsg("");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerously-allow-browser": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022", max_tokens: 1000,
+          messages: [{ role: "user", content: [
+            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: photoB64 } },
+            { type: "text", text: "List every food item visible. Return ONLY a JSON array: [{\"name\":\"item\",\"qty\":\"amount\",\"category\":\"fridge|freezer|canned|grains|sauces|spices|snacks|pantry\"}]. No markdown." }
+          ]}]
+        })
+      });
+      const data = await res.json();
+      const txt = (data.content || []).map(b => b.text || "").join("");
+      const clean = txt.replace(/^[\s\S]*?(\[)/, "[").replace(/\][^]*$/, "]");
+      const items = JSON.parse(clean);
+      const newItems = items.map((it, i) => ({ ...it, id: Date.now() + i, addedAt: new Date().toISOString() }));
+      setInventory(prev => {
+        const ex = prev.map(p => p.name.toLowerCase());
+        const add = newItems.filter(n => !ex.includes(n.name.toLowerCase()));
+        const upd = newItems.filter(n => ex.includes(n.name.toLowerCase()));
+        return [...prev.map(p => { const u = upd.find(x => x.name.toLowerCase() === p.name.toLowerCase()); return u ? { ...p, qty: u.qty } : p; }), ...add];
+      });
+      setAiMsg("Found " + items.length + " items. Inventory updated.");
+      setPhotoB64(null);
+    } catch (e) { setAiMsg("Could not read photo. Try again."); }
+    setAiLoad(false);
+  };
+
+
+  // ── Rolling average helper ──────────────────────────────────────────────────
+  const computeAverages = (fromDate, toDate) => {
+    const results = [];
+    const cur = new Date(fromDate + "T12:00:00");
+    const end = new Date(toDate + "T12:00:00");
+    while (cur <= end) {
+      const dk = cur.toISOString().split("T")[0];
+      const s = localStorage.getItem(SK.log + dk);
+      const dayEntries = s ? JSON.parse(s) : [];
+      if (dayEntries.length > 0) {
+        const dayTotals = dayEntries.reduce((a, e) => {
+          Object.keys(N).forEach(k => { a[k] = (a[k] || 0) + (e[k] || 0); });
+          return a;
+        }, zero());
+        results.push({ date: dk, totals: dayTotals });
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (!results.length) return null;
+    const avg = zero();
+    Object.keys(N).forEach(k => {
+      avg[k] = results.reduce((a, d) => a + (d.totals[k] || 0), 0) / results.length;
+    });
+    return { avg, days: results.length, from: fromDate, to: toDate };
+  };
+
+  const getAvgDates = () => {
+    const t = today();
+    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+    const yestStr = yest.toISOString().split("T")[0];
+    const firstLogDate = () => {
+      for (let i = 365; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const dk = d.toISOString().split("T")[0];
+        if (localStorage.getItem(SK.log + dk)) return dk;
+      }
+      return yestStr;
+    };
+    if (avgRange === "7excl") {
+      const from = new Date(); from.setDate(from.getDate() - 7);
+      return { from: from.toISOString().split("T")[0], to: yestStr };
+    }
+    if (avgRange === "7incl") {
+      const from = new Date(); from.setDate(from.getDate() - 6);
+      return { from: from.toISOString().split("T")[0], to: t };
+    }
+    if (avgRange === "all") return { from: firstLogDate(), to: yestStr };
+    return { from: avgFrom, to: avgTo };
+  };
+
+  const avgDates = getAvgDates();
+  const avgData = computeAverages(avgDates.from, avgDates.to);
+
+
+  // ── Insight trends helper (recomputes when avgData changes) ─────────────────
+  const fixes = {
+    protein:    { icon: "🥩", tip: "Add a tin of chicken in white sauce or an extra chicken breast. Your wafer thin ham adds ~15g per 3 slices." },
+    fibre:      { icon: "🫘", tip: "Open a tin of beans — baked beans, kidney or borlotti all hit 6–8g fibre per 200g. Black bean spaghetti is another easy hit." },
+    potassium:  { icon: "🍌", tip: "Banana (~360mg each), sweet potato (~540mg), or a portion of your frozen sweetcorn. Milk also contributes ~150mg/100ml." },
+    calcium:    { icon: "🥛", tip: "Your 250ml daily milk mug covers ~300mg. Mature cheddar is dense (~720mg/100g) — even 30g makes a dent." },
+    iron:       { icon: "🫘", tip: "Red kidney beans (~3mg/100g) and fortified oats are your best non-meat sources. Vitamin C at the same meal roughly triples absorption." },
+    vitD:       { icon: "☀️", tip: "Hard to hit from food — your fish oil gives ~2µg, salmon ~12µg/100g. Consider a separate D3 supplement (10µg/day UK guideline)." },
+    vitC:       { icon: "🌶️", tip: "Your mixed peppers are one of the best sources in your fridge (~120mg/100g). A whole pepper nearly hits the daily target alone." },
+    vitA:       { icon: "🥕", tip: "Sweet potato is excellent (~961µg per 150g). Your frozen sliced carrots are also a solid hit. Both in your inventory." },
+    omega3:     { icon: "🐟", tip: "Fish oil already gives 300mg EPA/DHA. A 100g salmon fillet adds ~2000mg — one portion nearly doubles the weekly omega-3 budget." },
+    magnesium:  { icon: "💊", tip: "Your magnesium 375mg pill should largely cover this. If still low, rolled oats (~50mg/50g) and dark chocolate are solid food sources." },
+    zinc:       { icon: "🥩", tip: "Chicken breast is moderate (~1mg/100g). Mature cheddar (~3mg/100g) and eggs (~0.6mg each) also contribute. Your Centrum covers 5mg." },
+    vitB9:      { icon: "🫘", tip: "Folate is often the hardest B vitamin to hit. Chickpeas and kidney beans in your cupboard are the best sources (~100µg per tin)." },
+    vitB12:     { icon: "💊", tip: "Your Super B-Complex provides 500µg — well over target. Eggs, fish and dairy all contribute naturally too." },
+    vitK:       { icon: "🥦", tip: "Broccoli is one of the best sources (~100µg/100g). Your frozen sweetcorn and sugar snap peas also contribute meaningfully." },
+    iodine:     { icon: "🥛", tip: "Milk is the main UK dietary source (~50µg/200ml). Your daily milk mug and yogurt together should cover most of the 150µg target." },
+    selenium:   { icon: "🐟", tip: "Tuna (~50µg/100g) and salmon (~30µg/100g) are the best sources you have. Your Centrum covers 27µg on top." },
+    vitE:       { icon: "🥜", tip: "Peanut butter is your easiest source (~2.5mg/20g). Eggs and salmon also contribute small amounts." },
+    sodium:     { icon: "⚠️", tip: "Already over — the main culprits are processed meats, pizza and baked beans. Try draining/rinsing tinned beans to cut sodium by ~40%." },
+    saturatedFat:{ icon:"⚠️", tip: "Over target — main sources are likely cheese, pizza and chicken goujons. Consider swapping one cheese portion for natural yogurt." },
+    sugar:      { icon: "⚠️", tip: "Check drinks — fruit, baked beans and sauces all add hidden sugar. Swap one fruit portion for veg." },
+    calories:   { icon: "⚠️", tip: "Running above TDEE. The easiest wins: skip one pizza, reduce cheese portion, or swap a snack for a zero-cal drink." },
+    starch:     { icon: "🍚", tip: "Boost starch with brown rice or oats — both in your inventory. A 75g dry portion of rice adds ~55g starch." },
+    vitB1:      { icon: "🌾", tip: "Rolled oats are your best source (~0.5mg/50g). Pork shoulder is also rich if you cook it this week." },
+    vitB2:      { icon: "🥚", tip: "Eggs (~0.25mg each) and milk (~0.18mg/100ml) are your main sources. The Super B-Complex tops you up." },
+    vitB3:      { icon: "🍗", tip: "Chicken breast is the richest source (~14mg/100g cooked). Tuna in water is also high (~13mg/100g)." },
+    vitB6:      { icon: "🍗", tip: "Chicken, tuna and salmon all supply B6 well. Your Super B-Complex covers the baseline." },
+    phosphorus: { icon: "🥛", tip: "Dairy is phosphorus-rich — milk and cheddar from your fridge both contribute. Eggs and pulses also add up." },
+    copper:     { icon: "🫘", tip: "Chickpeas and kidney beans are solid sources. Peanut butter also contributes ~0.1mg per 20g." },
+    manganese:  { icon: "🌾", tip: "Oats are one of the best sources (~1.9mg/50g dry). Brown rice and pulses also contribute." },
+    chromium:   { icon: "💊", tip: "Hard to get from food alone — your Centrum covers 20µg of the 35µg target. Eggs and whole grains add a small amount." },
+    vitB5:      { icon: "🥚", tip: "Eggs and chicken are good sources. Your Super B-Complex supplements this well." },
+    vitB7:      { icon: "🥚", tip: "Eggs are the best food source (~10µg each). Your Centrum covers some; 3 eggs gets close to target." },
+  };
+  const insightGaps = avgData ? Object.entries(N)
+    .filter(([k]) => k !== "water" && k !== "cholesterol")
+    .map(([k, v]) => ({ k, v, avg: avgData.avg[k] || 0, p: pct(avgData.avg[k] || 0, k) }))
+    .filter(x => x.p < 75).sort((a, b) => a.p - b.p).slice(0, 8) : [];
+  const insightOvershoots = avgData ? Object.entries(N)
+    .filter(([k]) => ["calories","saturatedFat","sugar","sodium"].includes(k))
+    .map(([k, v]) => ({ k, v, avg: avgData.avg[k] || 0, p: pct(avgData.avg[k] || 0, k) }))
+    .filter(x => x.p > 110).sort((a, b) => b.p - a.p) : [];
+  const insSeverity = (p) => p < 25 ? { col: "#f43f5e", label: "critical" } : p < 50 ? { col: "#f97316", label: "low" } : { col: "#facc15", label: "moderate" };
+
+  const c = {
+    app:  { fontFamily: "'IBM Plex Mono','Courier New',monospace", background: "#03030a", minHeight: "100vh", width: "100%", maxWidth: "100vw", color: "#dde8f0", paddingBottom: 80, position: "relative" },
+    card: { background: "linear-gradient(135deg,#0c0c1a 0%,#0a0a16 100%)", border: "1px solid #2a2a48", borderRadius: 14, padding: "16px 18px", marginBottom: 10, boxShadow: "0 4px 24px #00000060, inset 0 1px 0 #ffffff08" },
+    inp:  { background: "#07071200", border: "1px solid #2a2a48", borderRadius: 8, padding: "10px 13px", color: "#eef4f8", fontSize: 12, width: "100%", outline: "none", fontFamily: "inherit", backdropFilter: "blur(4px)" },
+    btn:  { background: "linear-gradient(135deg,#22d3ee,#06b6d4)", color: "#030310", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 700, cursor: "pointer", fontSize: 12, fontFamily: "inherit", boxShadow: "0 0 20px #22d3ee40, 0 2px 8px #00000060", letterSpacing: 1 },
+    gbtn: { background: "transparent", border: "1px solid #2a2a48", color: "#7a8a9a", borderRadius: 8, padding: "9px 16px", cursor: "pointer", fontSize: 11, fontFamily: "inherit", transition: "border-color 0.2s, color 0.2s" },
+    pill: (a) => ({ background: a ? "linear-gradient(135deg,#22d3ee18,#06b6d415)" : "transparent", border: "1px solid " + (a ? "#22d3ee" : "#1e1e35"), color: a ? "#22d3ee" : "#7a8a9a", borderRadius: 20, padding: "5px 14px", cursor: "pointer", fontSize: 11, fontFamily: "inherit", boxShadow: a ? "0 0 12px #22d3ee20" : "none", transition: "all 0.15s" }),
+    tabs: { position: "fixed", bottom: 0, left: 0, right: 0, background: "linear-gradient(0deg,#03030af0 60%,#03030a00)", backdropFilter: "blur(20px)", borderTop: "1px solid #1e1e3580", display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom,0px)" },
+  };
+
+  const Bar = ({ val, nkey, h }) => {
+    const p = pct(val, nkey);
+    const over = p >= 100;
+    const col = over ? (N[nkey].g === "macro" ? "#f97316" : "#f43f5e") : N[nkey].c;
+    return (
+      <div style={{ height: h || 3, background: "#0a0a14", borderRadius: 3, overflow: "hidden", marginTop: 3 }}>
+        <div style={{ width: p + "%", height: "100%", background: col, borderRadius: 3, transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)", boxShadow: p > 5 ? "0 0 8px " + col + "80" : "none" }} />
+      </div>
+    );
+  };
+
+  return (
+    <div style={c.app}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        html,body,#root{width:100%;min-height:100vh;background:#03030a;}
+        ::-webkit-scrollbar{width:2px;}
+        ::-webkit-scrollbar-thumb{background:linear-gradient(#22d3ee40,#8b5cf640);}
+        @keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse-glow{0%,100%{opacity:0.6}50%{opacity:1}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes shimmer{0%{background-position:200% center}100%{background-position:-200% center}}
+        @keyframes float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.02)}}
+        @keyframes scanline{0%{top:-10%}100%{top:110%}}
+        @keyframes number-pop{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+        .hr{transition:background 0.15s,border-color 0.15s;}
+        .hr:hover{background:linear-gradient(135deg,#0f0f20,#0c0c1a)!important;border-color:#22d3ee30!important;}
+        input:focus,textarea:focus{border-color:#22d3ee80!important;box-shadow:0 0 0 2px #22d3ee15!important;outline:none!important;}
+        input::placeholder,textarea::placeholder{color:#2a2a40;}
+        details summary::-webkit-details-marker{display:none;}
+        details summary::marker{display:none;}
+        details summary{list-style:none;cursor:pointer;}
+        button:active{transform:scale(0.97)!important;}
+        .glow-cyan{text-shadow:0 0 20px #22d3ee80,0 0 40px #22d3ee40;}
+        .tab-active{position:relative;}
+        .tab-active::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:20px;height:2px;background:#22d3ee;border-radius:0 0 2px 2px;box-shadow:0 0 8px #22d3ee;}
+      `}</style>
+
+      {/* Ambient background blobs */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
+        <div style={{position:"absolute",top:"-20%",left:"-10%",width:"60vw",height:"60vw",background:"radial-gradient(circle,#22d3ee08 0%,transparent 70%)",animation:"float 8s ease-in-out infinite"}}/>
+        <div style={{position:"absolute",bottom:"-10%",right:"-15%",width:"50vw",height:"50vw",background:"radial-gradient(circle,#8b5cf608 0%,transparent 70%)",animation:"float 11s ease-in-out infinite reverse"}}/>
+        <div style={{position:"absolute",top:"40%",left:"30%",width:"30vw",height:"30vw",background:"radial-gradient(circle,#f9731604 0%,transparent 70%)",animation:"float 14s ease-in-out infinite"}}/>
+      </div>
+
+      {/* ── HERO HEADER ── */}
+      <div style={{ position: "relative", zIndex: 1, padding: "0 0 0 0", borderBottom: "1px solid #1e1e3560" }}>
+
+        {/* Scanline effect */}
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", borderRadius: 0 }}>
+          <div style={{ position: "absolute", left: 0, right: 0, height: "1px", background: "linear-gradient(90deg,transparent,#22d3ee15,transparent)", animation: "scanline 4s linear infinite" }} />
+        </div>
+
+        {/* Top bar: wordmark + date nav */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px 0" }}>
+          <div>
+            <div style={{ fontSize: 8, letterSpacing: 5, color: "#22d3ee", fontWeight: 500 }}>NUTRITION</div>
+            <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: -0.5, color: "#f1f5f9", lineHeight: 1.1 }} className="glow-cyan">HUB</div>
+          </div>
+
+          {/* Date navigator */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => { const d = new Date(viewDate); d.setDate(d.getDate() - 1); setViewDate(d.toISOString().split("T")[0]); setLastAdded(null); }}
+              style={{ background: "none", border: "1px solid #2a2a48", color: "#7a8a9a", borderRadius: 6, width: 28, height: 28, cursor: "pointer", fontSize: 12, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {"‹"}
+            </button>
+            <div style={{ textAlign: "center", minWidth: 100 }}>
+              <div style={{ fontSize: viewDate === today() ? 13 : 12, fontWeight: 600, color: viewDate === today() ? "#e2e8f0" : "#f97316", letterSpacing: 0.3 }}>
+                {viewDate === today()
+                  ? new Date(viewDate + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+                  : (Math.round((new Date(today()) - new Date(viewDate)) / 86400000) === 1
+                      ? "Yesterday"
+                      : new Date(viewDate + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }))}
+              </div>
+              {viewDate !== today() && (
+                <div onClick={() => { setViewDate(today()); setLastAdded(null); }}
+                  style={{ fontSize: 8, color: "#22d3ee", cursor: "pointer", marginTop: 2, letterSpacing: 1 }}>↩ TODAY</div>
+              )}
+            </div>
+            <button onClick={() => { if (viewDate >= today()) return; const d = new Date(viewDate); d.setDate(d.getDate() + 1); setViewDate(d.toISOString().split("T")[0]); setLastAdded(null); }}
+              style={{ background: "none", border: "1px solid #2a2a48", color: viewDate >= today() ? "#1e1e35" : "#7a8a9a", borderRadius: 6, width: 28, height: 28, cursor: viewDate >= today() ? "default" : "pointer", fontSize: 12, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {"›"}
+            </button>
+          </div>
+        </div>
+
+        {/* Big calorie display */}
+        <div style={{ padding: "16px 16px 0", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 56, fontWeight: 600, lineHeight: 1, letterSpacing: -2, background: "linear-gradient(135deg,#22d3ee,#06b6d4 50%,#8b5cf6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 20px #22d3ee40)" }}>
+              {Math.round(totals.calories)}
+            </div>
+            <div style={{ fontSize: 10, color: "#8896a6", letterSpacing: 2, marginTop: 2 }}>
+              KCAL — {pct(totals.calories, "calories")}% OF {N.calories.t}
+            </div>
+          </div>
+          <div style={{ textAlign: "right", paddingBottom: 6 }}>
+            <div style={{ fontSize: 9, color: "#8896a6", marginBottom: 6, letterSpacing: 1 }}>{entries.filter(e => !e._water).length} ITEMS</div>
+            {/* Mini ring-like remaining indicator */}
+            <div style={{ fontSize: 18, fontWeight: 500, color: pct(totals.calories,"calories") > 100 ? "#f43f5e" : "#22c55e" }}>
+              {pct(totals.calories,"calories") > 100 ? "+" + (Math.round(totals.calories) - N.calories.t) : (N.calories.t - Math.round(totals.calories))}
+            </div>
+            <div style={{ fontSize: 8, color: "#8896a6", letterSpacing: 1 }}>{pct(totals.calories,"calories") > 100 ? "OVER" : "LEFT"}</div>
+          </div>
+        </div>
+
+        {/* Calorie progress bar — full width, thick */}
+        <div style={{ margin: "12px 16px 0", height: 6, background: "#0f0f1a", borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: pct(totals.calories, "calories") + "%", borderRadius: 3, transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)", background: pct(totals.calories,"calories") > 100 ? "linear-gradient(90deg,#f43f5e,#f97316)" : "linear-gradient(90deg,#06b6d4,#22d3ee,#8b5cf6)", boxShadow: "0 0 12px #22d3ee60" }} />
+        </div>
+
+        {/* Macro row */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, margin: "12px 0 0", borderTop: "1px solid #1e1e3540" }}>
+          {["protein","carbs","fat","fibre"].map((k, i) => (
+            <div key={k} style={{ padding: "10px 14px", borderRight: i < 3 ? "1px solid #1e1e3540" : "none", background: "linear-gradient(180deg,#0c0c1808,transparent)" }}>
+              <div style={{ fontSize: 18, fontWeight: 600, color: N[k].c, letterSpacing: -0.5, lineHeight: 1 }}>{Math.round(totals[k])}<span style={{ fontSize: 9, color: N[k].c + "80", marginLeft: 1 }}>g</span></div>
+              <div style={{ fontSize: 8, color: "#8896a6", letterSpacing: 1.5, marginTop: 3 }}>{N[k].label.toUpperCase()}</div>
+              <div style={{ height: 2, background: "#0f0f1a", borderRadius: 1, overflow: "hidden", marginTop: 5 }}>
+                <div style={{ height: "100%", width: pct(totals[k],k) + "%", background: N[k].c, borderRadius: 1, transition: "width 0.5s ease", boxShadow: "0 0 6px " + N[k].c + "80" }} />
+              </div>
+              <div style={{ fontSize: 8, color: "#8896a6", marginTop: 3 }}>{pct(totals[k],k)}%</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Missed meals banner */}
+        {missedPrompt && missedPrompt.length > 0 && (
+          <div style={{ margin: "0 12px 0", borderRadius: "0 0 10px 10px", background: "linear-gradient(135deg,#1a0800,#120800)", border: "1px solid #f9731630", borderTop: "none", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 8, color: "#f97316", letterSpacing: 2, marginBottom: 6 }}>INCOMPLETE DAYS</div>
+              {missedPrompt.map(m => (
+                <div key={m.dk} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, color: "#b0bec8" }}>{m.label}</span>
+                  <span style={{ fontSize: 10, color: m.kcal === 0 ? "#f43f5e" : "#eab308" }}>{m.kcal === 0 ? "nothing logged" : m.kcal + " kcal"}</span>
+                  <span onClick={() => { setViewDate(m.dk); setMissedPrompt(null); setLastAdded(null); }}
+                    style={{ fontSize: 9, color: "#22d3ee", cursor: "pointer", letterSpacing: 1, borderBottom: "1px solid #22d3ee30" }}>FILL IN</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setMissedPrompt(null)} style={{ background: "none", border: "none", color: "#8896a6", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 0 0 8px" }}>×</button>
+          </div>
+        )}
+      </div>
+
+      {tab === "log" && (
+        <div style={{ padding: "12px 14px 12px", animation: "fi 0.3s ease", position: "relative", zIndex: 1 }}>
+
+          {lastAdded && (
+            <div style={{ ...c.card, borderColor: "#22d3ee80" }}>
+              <div style={{ fontSize: 9, color: "#22d3ee", letterSpacing: 2, marginBottom: 8 }}>AFTER ADDING — {lastAdded.name}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 10 }}>
+                {["calories", "protein", "carbs", "fat"].map(k => (
+                  <div key={k} style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: N[k].c }}>{fmt(lastAdded.totals[k], k)}</div>
+                    <div style={{ fontSize: 8, color: "#8896a6", marginTop: 1 }}>{N[k].label}</div>
+                    <div style={{ fontSize: 8, color: pct(lastAdded.totals[k], k) > 100 ? "#f43f5e" : "#22d3ee" }}>{pct(lastAdded.totals[k], k)}%</div>
+                    <Bar val={lastAdded.totals[k]} nkey={k} />
+                  </div>
+                ))}
+              </div>
+              <button style={{ ...c.gbtn, width: "100%", fontSize: 10 }} onClick={() => setLastAdded(null)}>Dismiss</button>
+            </div>
+          )}
+
+          <div style={c.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 9, letterSpacing: 3, color: viewDate === today() ? "#22d3ee" : "#f97316", fontWeight: 600 }}>{viewDate === today() ? "ADD ENTRY" : "BACKFILL ENTRY"}</div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[["ai", "✦ AI"], ["search", "Search"], ["custom", "Custom"]].map(([m, lbl]) => (
+                  <button key={m} style={{ ...c.pill(mode === m), fontSize: 10, padding: "4px 10px" }} onClick={() => setMode(m)}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+
+            {mode === "ai" && !nlParsed && (
+              <div>
+                <textarea style={{ ...c.inp, height: 90, resize: "none", marginBottom: 8, lineHeight: 1.6 }}
+                  placeholder={"Describe what you ate in plain English, e.g.:\n\"1/3 breaded chicken airfried, 2 sesame rolls, 8 slices ham, 100g cheddar, pepperoni pizza, 7 carlsberg, 1.5l fruit fusion, 1l water\""}
+                  value={nlText} onChange={e => setNlText(e.target.value)} />
+                {nlError && <div style={{ fontSize: 10, color: "#f43f5e", marginBottom: 6 }}>{nlError}</div>}
+                <button style={{ ...c.btn, width: "100%" }} onClick={parseNL} disabled={nlLoading || !nlText.trim()}>
+                  {nlLoading ? "Parsing..." : "Parse and Log"}
+                </button>
+              </div>
+            )}
+
+            {mode === "ai" && nlParsed && (
+              <div>
+                <div style={{ fontSize: 9, color: "#22d3ee", letterSpacing: 1.5, marginBottom: 8 }}>REVIEW — {nlParsed.length} items</div>
+                <div style={{ maxHeight: 280, overflowY: "auto", marginBottom: 8 }}>
+                  {nlParsed.map((it, i) => (
+                    <div key={it.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 4px", borderBottom: "1px solid #0d0d16", opacity: it._on ? 1 : 0.35 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "#eef4f8" }}>{it.displayName}</div>
+                        <div style={{ fontSize: 9, color: "#8896a6", marginTop: 1 }}>
+                          {Math.round(it.calories || 0)} kcal · P{Math.round(it.protein || 0)}g · C{Math.round(it.carbs || 0)}g · F{Math.round(it.fat || 0)}g
+                          {(it.water || 0) > 0 ? " · " + it.water + "ml" : ""}
+                        </div>
+                        <div style={{ fontSize: 8, color: it._fromCache ? "#22c55e60" : "#f9731660" }}>{it._fromCache ? "cached" : "ai"}</div>
+                      </div>
+                      <button onClick={() => setNlParsed(p => p.map((x, j) => j === i ? { ...x, _on: !x._on } : x))}
+                        style={{ fontSize: 10, padding: "3px 9px", borderRadius: 4, border: "none", cursor: "pointer", background: it._on ? "#22d3ee20" : "#f43f5e20", color: it._on ? "#22d3ee" : "#f43f5e" }}>
+                        {it._on ? "on" : "off"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 8px", fontSize: 11, borderTop: "1px solid #14141e", marginBottom: 8 }}>
+                  <span style={{ color: "#8896a6" }}>Total</span>
+                  <span style={{ color: "#22d3ee" }}>{Math.round(nlParsed.filter(i => i._on).reduce((a, i) => a + (i.calories || 0), 0))} kcal</span>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button style={{ ...c.btn, flex: 1 }} onClick={confirmNL}>Confirm and Log</button>
+                  <button style={c.gbtn} onClick={() => { setNlParsed(null); setNlText(""); }}>Back</button>
+                </div>
+              </div>
+            )}
+
+            {mode === "search" && (
+              <div>
+                <input style={{ ...c.inp, marginBottom: 6 }} placeholder="Search foods..." value={search}
+                  onChange={e => { setSearch(e.target.value); setShowDrop(true); }}
+                  onFocus={() => setShowDrop(true)} />
+                {showDrop && search && (
+                  <div style={{ background: "#080810", border: "1px solid #2a2a48", borderRadius: 8, maxHeight: 190, overflowY: "auto", marginBottom: 8 }}>
+                    {filtered.map(f => (
+                      <div key={f.id} className="hr" style={{ padding: "9px 12px", cursor: "pointer", borderBottom: "1px solid #0d0d16", background: selFood && selFood.id === f.id ? "#0f0f1a" : "transparent" }}
+                        onClick={() => { setSelFood(f); setShowDrop(false); setSearch(f.name); }}>
+                        <div style={{ fontSize: 11, color: selFood && selFood.id === f.id ? "#22d3ee" : "#cbd5e1" }}>{f.name}</div>
+                        <div style={{ fontSize: 9, color: "#8896a6", marginTop: 2 }}>{f.calories}kcal · P{f.protein}g · C{f.carbs}g · F{f.fat}g</div>
+                      </div>
+                    ))}
+                    {!filtered.length && <div style={{ padding: 10, fontSize: 11, color: "#8896a6" }}>No results</div>}
+                  </div>
+                )}
+                {selFood && (
+                  <div style={{ background: "#0f0f1a", borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: "#22d3ee", marginBottom: 4 }}>{selFood.name}</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+                      <span style={{ fontSize: 10, color: "#8896a6" }}>Qty:</span>
+                      <input type="number" style={{ ...c.inp, width: 80 }} value={qty} min="0.25" step="0.25" onChange={e => setQty(parseFloat(e.target.value) || 1)} />
+                    </div>
+                  </div>
+                )}
+                <button style={{ ...c.btn, width: "100%" }} onClick={addFromDB} disabled={!selFood}>Add</button>
+              </div>
+            )}
+
+            {mode === "custom" && (
+              <div>
+                <input style={{ ...c.inp, marginBottom: 8 }} placeholder="Food name" value={customName} onChange={e => setCustomName(e.target.value)} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, maxHeight: 240, overflowY: "auto", marginBottom: 8 }}>
+                  {Object.entries(N).filter(([k]) => k !== "water").map(([k, v]) => (
+                    <input key={k} style={{ ...c.inp, fontSize: 10 }} placeholder={v.label + " (" + v.unit + ")"}
+                      value={customVals[k] || ""} onChange={e => setCustomVals(p => ({ ...p, [k]: e.target.value }))} />
+                  ))}
+                </div>
+                <button style={{ ...c.btn, width: "100%" }} onClick={addCustom}>Add</button>
+              </div>
+            )}
+          </div>
+
+          <div style={c.card}>
+            <div style={{ fontSize: 8, letterSpacing: 3, color: "#38e8ff", fontWeight: 600, marginBottom: 12 }}>DAY SUMMARY</div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+              <span style={{ fontSize: 10, color: "#f97316" }}>Calories</span>
+              <span style={{ fontSize: 10, color: "#8896a6" }}>{Math.round(totals.calories)} / {N.calories.t} kcal — {pct(totals.calories, "calories")}%</span>
+            </div>
+            <Bar val={totals.calories} nkey="calories" h={5} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 12, marginBottom: 12 }}>
+              {["protein", "carbs", "fat", "fibre"].map(k => (
+                <div key={k} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: N[k].c }}>{Math.round(totals[k])}<span style={{ fontSize: 8, color: "#8896a6" }}>g</span></div>
+                  <div style={{ fontSize: 8, color: "#8896a6" }}>{N[k].label}</div>
+                  <Bar val={totals[k]} nkey={k} />
+                  <div style={{ fontSize: 8, color: "#8896a6", marginTop: 1 }}>{pct(totals[k], k)}%</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderTop: "1px solid #14141e", borderBottom: "1px solid #14141e", marginBottom: 10 }}>
+              <div>
+                <span style={{ fontSize: 10, color: "#38bdf8" }}>Water  </span>
+                <span style={{ fontSize: 10 }}>{totals.water}ml</span>
+                <span style={{ fontSize: 9, color: "#8896a6" }}> / {N.water.t}ml ({pct(totals.water, "water")}%)</span>
+              </div>
+              <div style={{ display: "flex", gap: 5 }}>
+                {[250, 500].map(ml => (
+                  <button key={ml} onClick={() => addWater(ml)}
+                    style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid #0ea5e9", color: "#38bdf8", background: "transparent", cursor: "pointer" }}>
+                    +{ml}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: 9, color: "#8896a6", letterSpacing: 1.5, marginBottom: 6 }}>TOP GAPS</div>
+            {Object.entries(N)
+              .filter(([k, v]) => v.g !== "hydro" && pct(totals[k], k) < 60)
+              .sort((a, b) => pct(totals[a[0]], a[0]) - pct(totals[b[0]], b[0]))
+              .slice(0, 5)
+              .map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                  <span style={{ fontSize: 10, color: "#8896a6" }}>{v.label}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 60, height: 3, background: "#14141e", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ width: pct(totals[k], k) + "%", height: "100%", background: pct(totals[k], k) < 25 ? "#f43f5e" : "#eab308", borderRadius: 2 }} />
+                    </div>
+                    <span style={{ fontSize: 9, color: pct(totals[k], k) < 25 ? "#f87171" : "#facc15", minWidth: 28, textAlign: "right" }}>{pct(totals[k], k)}%</span>
+                  </div>
+                </div>
+              ))}
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ fontSize: 9, color: "#8896a6", cursor: "pointer", letterSpacing: 1.5, userSelect: "none" }}>FULL BREAKDOWN</summary>
+              <div style={{ marginTop: 8, maxHeight: 220, overflowY: "auto" }}>
+                {Object.entries(GROUPS).map(([grp, lbl]) => (
+                  <div key={grp} style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 8, color: "#22d3ee", letterSpacing: 2, marginBottom: 4 }}>{lbl.toUpperCase()}</div>
+                    {Object.entries(N).filter(([, v]) => v.g === grp).map(([k, v]) => (
+                      <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
+                        <span style={{ fontSize: 9, color: "#a0b4c4" }}>{v.label}</span>
+                        <span style={{ fontSize: 9, color: pct(totals[k], k) >= 100 ? "#22c55e" : pct(totals[k], k) >= 50 ? "#eab308" : "#f43f5e" }}>
+                          {fmt(totals[k], k)}{v.unit} ({pct(totals[k], k)}%)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+
+          {entries.filter(e => !e._water).length > 0 && (
+            <div style={c.card}>
+              <div style={{ fontSize: 8, letterSpacing: 3, color: "#38e8ff", fontWeight: 600, marginBottom: 10 }}>LOGGED</div>
+              {entries.filter(e => !e._water).map(e => (
+                <div key={e.id} className="hr" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 4px", borderBottom: "1px solid #0d0d16", borderRadius: 4 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: "#eef4f8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.displayName}</div>
+                    <div style={{ fontSize: 9, color: "#8896a6", marginTop: 1 }}>P{Math.round(e.protein)}g · C{Math.round(e.carbs)}g · F{Math.round(e.fat)}g</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, color: "#22d3ee" }}>{Math.round(e.calories)}</span>
+                    <button onClick={() => removeEntry(e.id)} style={{ background: "none", border: "1px solid #f43f5e30", color: "#f43f5e", borderRadius: 4, cursor: "pointer", fontSize: 11, padding: "2px 7px", fontFamily: "inherit" }}>del</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "nutrients" && (
+        <div style={{ padding: "12px 14px 12px", animation: "fi 0.3s ease", position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+            {Object.entries(GROUPS).map(([g, lbl]) => (
+              <button key={g} style={c.pill(nutGroup === g)} onClick={() => setNutGroup(g)}>{lbl}</button>
+            ))}
+          </div>
+          <div style={c.card}>
+            {Object.entries(N).filter(([, v]) => v.g === nutGroup).map(([k, v]) => {
+              const val = totals[k] || 0;
+              const p = pct(val, k);
+              const over = p > 100;
+              return (
+                <div key={k} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                    <span style={{ fontSize: 11, color: "#b0bec8" }}>{v.label}</span>
+                    <span style={{ fontSize: 11 }}>
+                      <span style={{ color: over ? "#f43f5e" : p >= 80 ? "#22c55e" : p >= 50 ? "#eab308" : "#b0bec8" }}>{fmt(val, k)}</span>
+                      <span style={{ color: "#8896a6" }}> / {v.t}{v.unit}</span>
+                      <span style={{ color: "#22d3ee", marginLeft: 6, fontSize: 9 }}>({p}%)</span>
+                    </span>
+                  </div>
+                  <div style={{ height: 4, background: "#14141e", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ width: p + "%", height: "100%", background: over ? "#f43f5e" : v.c, borderRadius: 2, transition: "width 0.4s" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === "inventory" && (
+        <div style={{ padding: "12px 14px 12px", animation: "fi 0.3s ease", position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            {[["view", "Stock"], ["photo", "Scan"], ["order", "Order"]].map(([t, lbl]) => (
+              <button key={t} style={c.pill(invTab === t)} onClick={() => setInvTab(t)}>{lbl}</button>
+            ))}
+          </div>
+
+          {invTab === "view" && (
+            <div style={c.card}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 8 }}>
+                <div style={{ fontSize: 9, color: "#8896a6", letterSpacing: 2 }}>INVENTORY — {inventory.length} items</div>
+                <div style={{ fontSize: 9, color: "#8896a6" }}>cache: {Object.keys(loadCache()).length} foods</div>
+              </div>
+              {Object.keys(CAT).map(cat => {
+                const its = inventory.filter(i => (i.category || "pantry") === cat);
+                if (!its.length) return null;
+                return (
+                  <details key={cat} style={{ marginBottom: 6 }} open={cat === "fridge" || cat === "freezer"}>
+                    <summary style={{ fontSize: 10, color: "#22d3ee", cursor: "pointer", padding: "6px 0", borderBottom: "1px solid #14141e" }}>
+                      {CAT_ICON[cat]} {CAT[cat]} <span style={{ color: "#8896a6" }}>({its.length})</span>
+                    </summary>
+                    {its.map(item => (
+                      <div key={item.id} className="hr" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 4px", borderBottom: "1px solid #0d0d16", borderRadius: 4 }}>
+                        <div>
+                          <div style={{ fontSize: 11 }}>{item.name}</div>
+                          <div style={{ fontSize: 9, color: "#8896a6" }}>{item.qty}</div>
+                        </div>
+                        <button onClick={() => removeInv(item.id)} style={{ background: "none", border: "none", color: "#8896a6", cursor: "pointer", fontSize: 14 }}>x</button>
+                      </div>
+                    ))}
+                  </details>
+                );
+              })}
+            </div>
+          )}
+
+          {invTab === "photo" && (
+            <div style={c.card}>
+              <div style={{ fontSize: 9, color: "#8896a6", letterSpacing: 2, marginBottom: 10 }}>PHOTO SCAN</div>
+              <p style={{ fontSize: 11, color: "#8896a6", marginBottom: 12, lineHeight: 1.7 }}>Upload a photo of your fridge, freezer or cupboard. AI will identify every item and update your inventory.</p>
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+                onChange={e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setPhotoB64(ev.target.result.split(",")[1]); r.readAsDataURL(f); }} />
+              {!photoB64
+                ? <button style={{ ...c.btn, width: "100%" }} onClick={() => fileRef.current.click()}>Take or Upload Photo</button>
+                : (
+                  <div>
+                    <div style={{ fontSize: 11, color: "#22d3ee", marginBottom: 8 }}>Photo ready to analyse</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button style={{ ...c.btn, flex: 1 }} onClick={analysePhoto} disabled={aiLoad}>{aiLoad ? "Analysing..." : "Analyse with AI"}</button>
+                      <button style={c.gbtn} onClick={() => setPhotoB64(null)}>Clear</button>
+                    </div>
+                  </div>
+                )}
+              {aiMsg && <div style={{ marginTop: 10, fontSize: 11, color: "#22d3ee" }}>{aiMsg}</div>}
+            </div>
+          )}
+
+          {invTab === "order" && (
+            <div style={c.card}>
+              <div style={{ fontSize: 9, color: "#8896a6", letterSpacing: 2, marginBottom: 10 }}>TESCO ORDER IMPORT</div>
+              {orderStep === "paste" && (
+                <div>
+                  <p style={{ fontSize: 11, color: "#8896a6", marginBottom: 10, lineHeight: 1.7 }}>Copy your Tesco order items and paste below.</p>
+                  <textarea style={{ ...c.inp, height: 160, resize: "vertical", marginBottom: 10 }}
+                    placeholder={"2x Tesco Whole Milk 2L\n1x Free Range Eggs 12 pack\nChicken Breast 600g"}
+                    value={orderTxt} onChange={e => setOrderTxt(e.target.value)} />
+                  <button style={{ ...c.btn, width: "100%" }}
+                    onClick={() => { setParsedOrder(parseTesco(orderTxt)); setOrderStep("review"); }}
+                    disabled={!orderTxt.trim()}>Parse Order</button>
+                </div>
+              )}
+              {orderStep === "review" && (
+                <div>
+                  <div style={{ fontSize: 11, color: "#22d3ee", marginBottom: 10 }}>Found {parsedOrder.length} items</div>
+                  <div style={{ maxHeight: 260, overflowY: "auto", marginBottom: 10 }}>
+                    {parsedOrder.map((item, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 4px", borderBottom: "1px solid #0d0d16" }}>
+                        <div>
+                          <div style={{ fontSize: 11 }}>{item.name}</div>
+                          <div style={{ fontSize: 9, color: "#8896a6" }}>qty: {item.qty}{item.price ? " — " + item.price : ""}</div>
+                        </div>
+                        <button onClick={() => setParsedOrder(p => p.map((x, j) => j === i ? { ...x, include: !x.include } : x))}
+                          style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: item.include !== false ? "#22d3ee20" : "#f43f5e20", color: item.include !== false ? "#22d3ee" : "#f43f5e" }}>
+                          {item.include !== false ? "Add" : "Skip"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button style={{ ...c.btn, flex: 1 }} onClick={() => {
+                      const newItems = parsedOrder.filter(p => p.include !== false).map((p, i) => ({ id: Date.now() + i, name: p.name, qty: "" + p.qty, category: "order", addedAt: new Date().toISOString() }));
+                      setInventory(prev => { const ex = prev.map(p => p.name.toLowerCase()); return [...prev, ...newItems.filter(n => !ex.includes(n.name.toLowerCase()))]; });
+                      setOrderTxt(""); setParsedOrder([]); setOrderStep("paste"); setInvTab("view");
+                    }}>Add to Inventory</button>
+                    <button style={c.gbtn} onClick={() => setOrderStep("paste")}>Back</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "stats" && (
+        <div style={{ padding: "12px 14px 12px", animation: "fi 0.3s ease", position: "relative", zIndex: 1 }}>
+
+          {/* Body stats */}
+          <div style={c.card}>
+            <div style={{ fontSize: 8, letterSpacing: 3, color: "#22d3ee", fontWeight: 600, marginBottom: 12 }}>BODY STATS — 6ft 2 (188cm)</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <input style={c.inp} type="number" placeholder="Weight (kg)" value={wtInput} onChange={e => setWtInput(e.target.value)} />
+              <button style={c.btn} onClick={() => { const w = parseFloat(wtInput); if (!isNaN(w) && w > 0) { setSavedWt(w); localStorage.setItem(SK.wt, w); setWtInput(""); } }}>Save</button>
+            </div>
+            {savedWt && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { label: "Weight", val: savedWt + "kg", col: "#f1f5f9" },
+                  { label: "BMI", val: bmi, sub: parseFloat(bmi) < 18.5 ? "Underweight" : parseFloat(bmi) < 25 ? "Healthy" : parseFloat(bmi) < 30 ? "Overweight" : "Obese", col: parseFloat(bmi) < 25 ? "#22c55e" : parseFloat(bmi) < 30 ? "#facc15" : "#f43f5e" },
+                  { label: "TDEE (est.)", val: Math.round(66.5 + 13.75 * savedWt + 5.003 * H - 6.75 * 35) + "kcal", col: "#f1f5f9" },
+                  { label: "Ideal range", val: "72-96kg", sub: "for 6ft 2 frame", col: "#8896a6" },
+                ].map(({ label, val, sub, col }) => (
+                  <div key={label} style={{ background: "#080812", borderRadius: 10, padding: 12, border: "1px solid #1e1e35" }}>
+                    <div style={{ fontSize: 8, color: "#8896a6", letterSpacing: 1.5, marginBottom: 5 }}>{label.toUpperCase()}</div>
+                    <div style={{ fontSize: 20, fontWeight: 600, color: col, letterSpacing: -0.5 }}>{val}</div>
+                    {sub && <div style={{ fontSize: 9, color: col, marginTop: 2 }}>{sub}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {savedWt && <CalBalance savedWt={savedWt} consumed={Math.round(totals.calories)} />}
+          </div>
+
+          {/* Trends & Insights */}
+          {avgData && (
+              <div style={c.card}>
+                <div style={{ fontSize: 8, letterSpacing: 3, color: "#22d3ee", fontWeight: 600, marginBottom: 4 }}>TRENDS & INSIGHTS</div>
+                <div style={{ fontSize: 9, color: "#8896a6", marginBottom: 14 }}>based on {avgData.days}-day average · {avgDates.from} to {avgDates.to}</div>
+
+                {insightOvershoots.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 8, color: "#f43f5e", letterSpacing: 2, marginBottom: 8 }}>CONSISTENTLY OVER TARGET</div>
+                    {insightOvershoots.map(({ k, v, avg, p }) => (
+                      <div key={k} style={{ background: "#120608", border: "1px solid #f43f5e30", borderRadius: 10, padding: "12px 14px", marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 16 }}>{(fixes[k] || {}).icon || "⚠️"}</span>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#f43f5e" }}>{v.label}</div>
+                              <div style={{ fontSize: 9, color: "#8896a6" }}>avg {k === "calories" ? Math.round(avg) : avg.toFixed(v.p)}{v.unit} — {p}% of target</div>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "#f43f5e", background: "#f43f5e18", borderRadius: 6, padding: "3px 8px" }}>+{p - 100}%</div>
+                        </div>
+                        <div style={{ height: 3, background: "#0f0f1a", borderRadius: 2, overflow: "hidden", marginBottom: 8 }}>
+                          <div style={{ height: "100%", width: "100%", background: "linear-gradient(90deg,#f43f5e,#f97316)", borderRadius: 2, boxShadow: "0 0 8px #f43f5e60" }} />
+                        </div>
+                        {fixes[k] && <div style={{ fontSize: 10, color: "#b8c8d8", lineHeight: 1.6 }}>{fixes[k].tip}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {insightGaps.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 8, color: "#facc15", letterSpacing: 2, marginBottom: 8 }}>CONSISTENT GAPS</div>
+                    {insightGaps.map(({ k, v, avg, p }) => {
+                      const sev = insSeverity(p);
+                      return (
+                        <div key={k} style={{ background: "#0a0a13", border: "1px solid " + sev.col + "30", borderRadius: 10, padding: "12px 14px", marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 16 }}>{(fixes[k] || {}).icon || "📊"}</span>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: sev.col }}>{v.label}</div>
+                                <div style={{ fontSize: 9, color: "#8896a6" }}>avg {avg < 0.01 ? "0" : avg.toFixed(v.p)}{v.unit} of {v.t}{v.unit} target</div>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: sev.col, background: sev.col + "18", borderRadius: 6, padding: "3px 8px", textTransform: "uppercase" }}>{sev.label}</div>
+                          </div>
+                          <div style={{ height: 3, background: "#0f0f1a", borderRadius: 2, overflow: "hidden", marginBottom: 8 }}>
+                            <div style={{ height: "100%", width: p + "%", background: sev.col, borderRadius: 2, boxShadow: "0 0 6px " + sev.col + "60" }} />
+                          </div>
+                          {fixes[k] && <div style={{ fontSize: 10, color: "#b8c8d8", lineHeight: 1.6 }}>{fixes[k].tip}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {insightGaps.length === 0 && insightOvershoots.length === 0 && (
+                  <div style={{ textAlign: "center", padding: "20px 0", color: "#22c55e", fontSize: 12 }}>✓ All nutrients within healthy range for this period</div>
+                )}
+              </div>
+          )}
+
+          {/* Rolling averages */}
+          <div style={c.card}>
+            <div style={{ fontSize: 8, letterSpacing: 3, color: "#22d3ee", fontWeight: 600, marginBottom: 12 }}>ROLLING AVERAGES</div>
+
+            {/* Range selector */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              {[
+                ["7excl", "7d excl. today"],
+                ["7incl", "7d incl. today"],
+                ["all",   "Since start"],
+                ["custom","Custom"],
+              ].map(([id, lbl]) => (
+                <button key={id} style={{ ...c.pill(avgRange === id), fontSize: 10, padding: "5px 12px" }} onClick={() => setAvgRange(id)}>{lbl}</button>
+              ))}
+            </div>
+
+            {/* Custom date pickers */}
+            {avgRange === "custom" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 8, color: "#8896a6", letterSpacing: 1.5, marginBottom: 4 }}>FROM</div>
+                  <input type="date" style={{ ...c.inp, fontSize: 11 }} value={avgFrom} max={avgTo} onChange={e => setAvgFrom(e.target.value)} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: "#8896a6", letterSpacing: 1.5, marginBottom: 4 }}>TO</div>
+                  <input type="date" style={{ ...c.inp, fontSize: 11 }} value={avgTo} max={today()} onChange={e => setAvgTo(e.target.value)} />
+                </div>
+              </div>
+            )}
+
+            {/* Date range label */}
+            <div style={{ fontSize: 9, color: "#8896a6", marginBottom: 12, padding: "6px 10px", background: "#080812", borderRadius: 6, border: "1px solid #1e1e35" }}>
+              {avgDates.from} to {avgDates.to}
+              {avgData && <span style={{ color: "#22d3ee", marginLeft: 8 }}>{avgData.days} days with data</span>}
+              {!avgData && <span style={{ color: "#f43f5e", marginLeft: 8 }}>no logged days in range</span>}
+            </div>
+
+            {avgData && (
+              <div>
+                {/* Big 4 averages */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8, marginBottom: 14 }}>
+                  {["calories","protein","carbs","fat"].map(k => {
+                    const avg = avgData.avg[k];
+                    const p = pct(avg, k);
+                    const over = p >= 100;
+                    return (
+                      <div key={k} style={{ background: "#080812", borderRadius: 10, padding: "12px 14px", border: "1px solid #1e1e35" }}>
+                        <div style={{ fontSize: 8, color: "#8896a6", letterSpacing: 1.5, marginBottom: 6 }}>{N[k].label.toUpperCase()}</div>
+                        <div style={{ fontSize: 24, fontWeight: 600, color: N[k].c, letterSpacing: -1, lineHeight: 1 }}>
+                          {k === "calories" ? Math.round(avg) : avg.toFixed(1)}
+                          <span style={{ fontSize: 10, color: N[k].c + "80", marginLeft: 2 }}>{N[k].unit}</span>
+                        </div>
+                        <div style={{ fontSize: 8, color: over ? "#f43f5e" : "#8896a6", marginTop: 4 }}>avg {p}% of target</div>
+                        <div style={{ height: 3, background: "#0f0f1a", borderRadius: 2, overflow: "hidden", marginTop: 6 }}>
+                          <div style={{ height: "100%", width: p + "%", background: over ? "#f43f5e" : N[k].c, borderRadius: 2, boxShadow: "0 0 6px " + N[k].c + "60" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Full nutrient averages by group */}
+                {Object.entries(GROUPS).map(([grp, grpLbl]) => (
+                  <details key={grp} style={{ marginBottom: 6 }}>
+                    <summary style={{ fontSize: 9, color: "#22d3ee", cursor: "pointer", padding: "7px 0", borderBottom: "1px solid #1e1e3540", letterSpacing: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>{grpLbl.toUpperCase()}</span>
+                      <span style={{ fontSize: 8, color: "#8896a6" }}>avg per day</span>
+                    </summary>
+                    <div style={{ paddingTop: 8 }}>
+                      {Object.entries(N).filter(([, v]) => v.g === grp).map(([k, v]) => {
+                        const avg = avgData.avg[k] || 0;
+                        const p = pct(avg, k);
+                        const col = p >= 100 ? "#f43f5e" : p >= 80 ? "#22c55e" : p >= 50 ? "#facc15" : "#f87171";
+                        return (
+                          <div key={k} style={{ display: "grid", gridTemplateColumns: "1fr auto 60px", gap: 8, alignItems: "center", padding: "5px 0", borderBottom: "1px solid #0f0f1a" }}>
+                            <span style={{ fontSize: 10, color: "#b8c8d8" }}>{v.label}</span>
+                            <span style={{ fontSize: 10, color: col, textAlign: "right", minWidth: 70 }}>{avg < 0.01 ? "0" : avg.toFixed(v.p)}{v.unit}</span>
+                            <div style={{ position: "relative" }}>
+                              <div style={{ height: 3, background: "#0f0f1a", borderRadius: 2, overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: p + "%", background: col, borderRadius: 2 }} />
+                              </div>
+                              <div style={{ fontSize: 7, color: col, textAlign: "right", marginTop: 2 }}>{p}%</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
+
+      {tab === "data" && (
+        <DataTab />
+      )}
+
+      <div style={c.tabs}>
+        {[["log","◈","LOG"],["nutrients","◉","NUTRIENTS"],["inventory","◫","STOCK"],["stats","◎","STATS"],["data","⬡","DATA"]].map(([id,icon,lbl]) => (
+          <div key={id} onClick={() => setTab(id)} className={tab === id ? "tab-active" : ""}
+            style={{ flex: 1, padding: "12px 0 10px", textAlign: "center", cursor: "pointer", fontFamily: "inherit", transition: "color 0.2s" }}>
+            <div style={{ fontSize: 16, color: tab === id ? "#22d3ee" : "#506070", marginBottom: 2, filter: tab === id ? "drop-shadow(0 0 6px #22d3ee)" : "none", transition: "all 0.2s" }}>{icon}</div>
+            <div style={{ fontSize: 8, letterSpacing: 2, color: tab === id ? "#22d3ee" : "#506070", fontWeight: tab === id ? 600 : 400 }}>{lbl}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+  </script>
+</body>
+</html>

@@ -6,11 +6,12 @@ from pathlib import Path
 # Paths to scan for projects
 SEARCH_PATHS = [
     Path.home() / "Documents",
-    Path.home() / "OneDrive" / "Documents"
+    Path.home() / "OneDrive" / "Documents",
+    Path.home() / ".gemini" / "antigravity"
 ]
 
 # Output path for the LIFEOS dashboard
-OUTPUT_FILE = Path.home() / "Documents" / "LIFEOS_PORTAL" / "assets" / "data.js"
+OUTPUT_FILE = Path.home() / ".gemini" / "antigravity" / "LIFEOS_PORTAL" / "assets" / "data.js"
 
 def find_projects():
     projects = []
