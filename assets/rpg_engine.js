@@ -260,5 +260,5 @@ function logEvent(message) {
 document.addEventListener('DOMContentLoaded', initRPG);
 
 if (typeof module !== 'undefined') {
-    module.exports = { addXP, restoreQuestState, charData };
+    module.exports = { addXP, restoreQuestState, get charData() { return charData; } };
 }
